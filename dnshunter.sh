@@ -207,27 +207,36 @@ spf_msg()
     echo ""
 }
 
+check_spf()
+{
+    _spf="$( dig TXT $1 +short @$2 | grep -i 'v=spf1' )"
+    if [ -z "$_spf" ]; then
+        warn "${3}No SPF for $1 in $2"
+    elif echo $_spf | grep -- '-all' >/dev/null; then
+        info "${3}Secure SPF for $1 in $2"
+    elif echo $_spf | grep -- '~all' >/dev/null; then
+        warn "${3}Partially Secure (~all) SPF for $1 in $2"
+        ret_code=1
+    elif echo $_spf | grep -- '+all' >/dev/null; then
+        warn "${3}Insecure (+all) SPF for $1 in $ns"
+        ret_code=1
+    elif echo $_spf | grep -- '?all' >/dev/null; then
+        warn "${3}Insecure (?all) SPF for $1 in $ns"
+        ret_code=1
+    fi
+    spf_recur=$( echo $_spf | grep -oE "(redirect=|include:)[^ \"]*" | sed "s/include://;s/redirect=//" | sort -u )
+    for ss in ${spf_recur}; do
+        check_spf ${ss} "$2" "${3}  " || ret_code=1
+    done
+    return $ret_code
+}
+
 spf()
 {
     msg "[spf] checking SPF record(s)"
     ret_code=0
     for ns in $NAMESERVERS; do
-        _spf="$( dig TXT $1 +short @$ns | grep -i 'v=spf1' )"
-        if [ -z "$_spf" ]; then
-            warn "No SPF for $1 in $ns"
-        elif echo $_spf | grep -- '-all' >/dev/null; then
-            info "Secure SPF for $1 in $ns"
-            ret_code=1
-        elif echo $_spf | grep -- '~all' >/dev/null; then
-            warn "Partially Secure (~all) SPF for $1 in $ns"
-            ret_code=1
-        elif echo $_spf | grep -- '+all' >/dev/null; then
-            warn "Insecure (+all) SPF for $1 in $ns"
-            ret_code=1
-        elif echo $_spf | grep -- '?all' >/dev/null; then
-            warn "Insecure (?all) SPF for $1 in $ns"
-            ret_code=1
-        fi
+        check_spf "$1" "$ns" || ret_code=1
     done; return $ret_code
 }
 
