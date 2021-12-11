@@ -199,6 +199,7 @@ dnssec()
 
 ### Mail records
 ### https://dmarcian.com/spf-syntax-table/
+### https://gitlab.com/brn1337/mailAuthCheck
 ###############################################################################
 
 spf_msg()
@@ -226,7 +227,7 @@ check_spf()
     fi
     spf_recur=$( echo $_spf | grep -oE "(redirect=|include:)[^ \"]*" | sed "s/include://;s/redirect=//" | sort -u )
     for ss in ${spf_recur}; do
-        check_spf ${ss} "$2" "${3}  " || ret_code=1
+        check_spf ${ss} "$2" "${3}    " || ret_code=1
     done
     return $ret_code
 }
@@ -240,6 +241,32 @@ spf()
     done; return $ret_code
 }
 
+dkim_msg()
+{
+    [ ${1} -eq 0 ] && return
+    echo ""
+}
+
+dkim()
+{
+    msg "[dkim] checking if DMARC is implemented"
+    ret_code=0
+    for ns in $NAMESERVERS; do
+        found=0
+        for selector in ${1%%\.*} default dkim dkim-shared dkimpal email gamma google mail mdaemon selector selector1 selector2 selector3 selector4 selector5; do
+            key=$( dig TXT "${selector}._domainkey.${1}" +short @"$ns" | grep -i "v=dkim" )
+            if [ ! -z "$key" ]; then
+                info "DKIM found for $1 in $ns ($selector._domainkey.${1})"
+                found=1; break
+            fi
+        done
+        if [ $found -eq 0 ]; then
+            warn "No DKIM found for $1 in $ns"
+            ret_code=1
+        fi
+    done
+    return $ret_code
+}
 
 ###############################################################################
 ###############################################################################
@@ -286,7 +313,7 @@ if [ $AGGRESS -eq 1 ]; then
     version $TARGET
 fi
 
-checks="zone_transfer soa_info glue_record dnssec spf"
+checks="zone_transfer soa_info glue_record dnssec spf dkim"
 for check in $checks; do
     if ${check} "${TARGET}"; then
         msg "No misconfiguration found"
