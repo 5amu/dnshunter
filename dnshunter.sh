@@ -3,17 +3,7 @@
 # Author: 5amu
 #
 
-# @TODO: 
-# BGP assessment: ROA / IRR / ASN georedundancy
-# ASN verify ROA: whois -h whois.bgpmon.net " --roa <asnid> <subnet/netmask>"
-# ASN lookup for IP: whois -h whois.cymru.com "-v <ip>"
-# ASN whois -h whois.ripe.net " -T route 47.73.31.237"
-# SPF record validation
-# DMARC record validation
-# DKIM record validation
-
-### IO from blackarch.org/strap.sh
-### simple error message wrapper
+### IO from https://blackarch.org/strap.sh
 ###############################################################################
 
 BOLD="$(tput bold)"; RESET="$(tput sgr0)"
@@ -175,8 +165,7 @@ zone_transfer()
             | tr -s ' ' 
             ret_code=1
         fi
-    done
-    return $ret_code
+    done; return $ret_code
 }
 
 ### is DNSSEC implemented
@@ -225,7 +214,7 @@ check_spf()
         warn "${3}Insecure (?all) SPF for $1 in $ns"
         ret_code=1
     fi
-    spf_recur=$( echo $_spf | grep -oE "(redirect=|include:)[^ \"]*" | sed "s/include://;s/redirect=//" | sort -u )
+    spf_recur="$( echo $_spf | grep -oE "(redirect=|include:)[^ \"]*" | sed "s/include://;s/redirect=//" | sort -u )"
     for ss in ${spf_recur}; do
         check_spf ${ss} "$2" "${3}    " || ret_code=1
     done
@@ -234,7 +223,7 @@ check_spf()
 
 spf()
 {
-    msg "[spf] checking SPF record(s)"
+    msg "[spf] Checking SPF record(s)"
     ret_code=0
     for ns in $NAMESERVERS; do
         check_spf "$1" "$ns" || ret_code=1
@@ -249,7 +238,7 @@ dkim_msg()
 
 dkim()
 {
-    msg "[dkim] checking if DMARC is implemented"
+    msg "[dkim] Checking if DKIM is implemented"
     ret_code=0
     for ns in $NAMESERVERS; do
         found=0
@@ -268,23 +257,105 @@ dkim()
     return $ret_code
 }
 
+dmarc_msg()
+{
+    [ ${1} -eq 0 ] && return
+    echo ""
+}
+
+dmarc()
+{
+    msg "[dmarc] Checking DMARC records"
+    ret_code=0
+    for ns in $NAMESERVERS; do
+        _dmarc="$( dig TXT "_dmarc.${1}" +short @"$ns" | grep -i "v=dmark" )"
+        if [ -z "$_dmarc" ]; then
+            warn "DMARC not present for $1 in $ns"
+            ret_code=1
+        elif echo $_dmarc | grep "p=reject" &>/dev/null; then
+            info "Secure DMARC policy (reject) for $1 in $ns"
+        elif echo $_dmarc | grep "p=quarantine" &>/dev/null; then
+            info "Secure DMARC policy (quarantine) for $1 in $ns"
+        elif echo $_dmarc | grep "p=none" &>/dev/null; then
+            warn "Insecure DMARC policy (none) for $1 in $ns"
+            ret_code=1
+        fi
+    done; return $ret_code
+}
+
+### BGP Assessment
+###############################################################################
+
+bgp_msg()
+{
+    [ ${1} -eq 0 ] && return
+    echo ""
+}
+
+bgp()
+{
+    msg "[bgp] Checking low hanging BGP misconfigurations"
+    ret_code=0
+    for ns in $NAMESERVERS; do
+        nsip="$( dig A $ns +short )"
+        assn="$assn $( whois -h whois.cymru.com "-v $nsip" | tail -n +3 | tr -d ' ' | cut -d '|' -f 1,3,7 | tr '\n' ' ' )"
+    done
+    if [ "$assn" = " " ]; then
+        warn "Could not retrieve info from whois.cymru.com database"
+        warn "check with Hurricane: https://bgp.he.net/"
+        return 1
+    fi
+    assn="$( echo $assn | tr ' ' '\n' | sort -u | tr '\n' ' ' )"
+
+    for asrt in $assn; do
+        as="$( echo ${asrt} | cut -d '|' -f 1 )"
+        sn="$( echo ${asrt} | cut -d '|' -f 2 )"
+        if whois -h whois.bgpmon.net " --roa $as $sn" | grep "Not Found" &>/dev/null; then
+            warn "No ROA for $sn originated by $as"
+            ret_code=1
+        fi
+        geo="${geo} $( echo ${asrt} | cut -d '|' -f 2 | cut -d ',' -f 2 )"
+    done
+    
+    ngeoloc="$( echo "$geo" | tr -s ' ' | sed "s/^\s//g" | tr ' ' '\n' | sort -u | wc -l )"
+    case "$ngeoloc" in
+        "0") 
+            warn "Something went wrong, check georedundancy manually"
+            ret_code=1
+            ;;
+        "1") 
+            warn "Bad georedundancy: 1 location"
+            ret_code=1
+            ;;
+        *)
+            nasn="$( echo $assn | tr ' ' '\n' | wc -l )"
+            if [ "$nasn" -gt 3 ] && [ $( expr "$nasn" / 2 ) -gt "$ngeoloc" ]; then
+                warn "Ideally, you should have every 1 or 2 ASNs in different"
+                warn "geographical locations. In this case we have:"
+                warn "$nasn ASNs distributed on $ngeoloc locations"
+                ret_code=1
+            fi
+    esac
+    return $ret_code
+}
+
 ###############################################################################
 ###############################################################################
 
 usage()
 {
-    echo "Usage: dns-hunter.sh [-h] [-v] [-a] -d DOMAIN"
+    echo "Usage: dns-hunter.sh [-h] [-v] [-a] [-n <file>] -d DOMAIN"
     echo ""
-    echo "-h|--help          Display help and exit"
-    echo "-v|--verbose       Show verbose output"
-    echo "-a|--aggressive    Run in aggressive mode"
-    echo "-d|--domain        Specify target domain"
-    echo "-n|--file-ns       File with nameservers (new-line separated)"
+    echo "    -h|--help          Display help and exit"
+    echo "    -v|--verbose       Show verbose output"
+    echo "    -a|--aggressive    Run in aggressive mode"
+    echo "    -d|--domain        Specify target domain"
+    echo "    -n|--file-ns       File with nameservers (new-line separated)"
     echo ""
 }
 
 # check for needed software
-NEEDED="whois dig nmap"
+NEEDED="whois dig nmap expr"
 if ! command -v $( echo $NEEDED ) >/dev/null; then
     err "The script needs the following binaries to work: $NEEDED"
 fi
@@ -313,7 +384,7 @@ if [ $AGGRESS -eq 1 ]; then
     version $TARGET
 fi
 
-checks="zone_transfer soa_info glue_record dnssec spf dkim"
+checks="soa_info zone_transfer glue_record dnssec spf dmarc dkim bgp"
 for check in $checks; do
     if ${check} "${TARGET}"; then
         msg "No misconfiguration found"
