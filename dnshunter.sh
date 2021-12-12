@@ -131,10 +131,34 @@ glue_record_msg()
 glue_record()
 {
     msg "[glue_records] Looking for configured glue record for nameservers"
-    if ! dig NS $1 +trace +noall +additional | grep "${1}.*A" >/dev/null; then
-        warn "GLUE record not set for nameservers"
-        return 1
-    fi
+    ret_code=0
+    for ns in $NAMESERVERS; do
+        if ! dig NS $1 +noall +additional @"$ns" | grep "${ns}.*A" &>/dev/null; then
+            warn "GLUE record not set for nameserver $ns in ADDITIONAL section"
+            ret_code=1
+        fi
+    done; return $ret_code
+}
+
+### ANY queries
+### https://www.cisa.gov/uscert/ncas/alerts/TA13-088A
+###############################################################################
+
+any_query_msg()
+{
+    [ ${1} -eq 0 ] && return
+}
+
+any_query()
+{
+    msg "[any_query] Checking if the DNS answers to ANY queries"
+    ret_code=0
+    for ns in $NAMESERVERS; do
+        if [ "$( dig ANY $1 @"$ns" +noall +answer | wc -l )" -gt 0 ]; then
+            warn "DNS $ns answers to ANY queries"
+            ret_code=1
+        fi
+    done; return $ret_code
 }
 
 ### DNS zone transfer checker
@@ -384,7 +408,7 @@ if [ $AGGRESS -eq 1 ]; then
     version $TARGET
 fi
 
-checks="soa_info zone_transfer glue_record dnssec spf dmarc dkim bgp"
+checks="soa_info zone_transfer any_query glue_record dnssec spf dmarc dkim bgp"
 for check in $checks; do
     if ${check} "${TARGET}"; then
         msg "No misconfiguration found"
