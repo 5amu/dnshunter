@@ -147,6 +147,11 @@ glue_record()
 any_query_msg()
 {
     [ ${1} -eq 0 ] && return
+    info "Answering to ANY queries might get the nameserver to suffer from"
+    info "DNS Amplification Attacks, basically ddos attacks based on the fact"
+    info "that the answer given by the DNS is much larger that the request"
+    info "made by the host. More information on the severity here: "
+    info "https://www.cisa.gov/uscert/ncas/alerts/TA13-088A"
 }
 
 any_query()
@@ -198,7 +203,10 @@ zone_transfer()
 dnssec_msg()
 {
     [ ${1} -eq 0 ] && return
-    echo ""
+    info "DNSSEC is a suite of extensions aimed to guarantee secure data"
+    info "exchange between the name server and the client. It guarantees data"
+    info "integrity and denial of exitence. Its mean is to avoid zone"
+    info "enumeration and prevent from manipulated answers and cache poisoning"
 }
 
 dnssec()
@@ -218,7 +226,8 @@ dnssec()
 spf_msg()
 {
     [ ${1} -eq 0 ] && return
-    echo ""
+    info "SPF is a TXT record that prevents mail spoofing by verifying servers"
+    info "that are allowed to send emails using the specified domain"
 }
 
 check_spf()
@@ -257,7 +266,8 @@ spf()
 dkim_msg()
 {
     [ ${1} -eq 0 ] && return
-    echo ""
+    info "DKIM is a TXT record that guarantees that a particular email comes"
+    info "from the advertised organization."
 }
 
 dkim()
@@ -284,7 +294,8 @@ dkim()
 dmarc_msg()
 {
     [ ${1} -eq 0 ] && return
-    echo ""
+    info "DMARC is a record that correlates SPF and DKIM and takes action"
+    info "according to its policy: none, quarantine, reject."
 }
 
 dmarc()
@@ -292,7 +303,7 @@ dmarc()
     msg "[dmarc] Checking DMARC records"
     ret_code=0
     for ns in $NAMESERVERS; do
-        _dmarc="$( dig TXT "_dmarc.${1}" +short @"$ns" | grep -i "v=dmark" )"
+        _dmarc="$( dig TXT "_dmarc.${1}" +short @"$ns" | grep -i "v=dmarc" )"
         if [ -z "$_dmarc" ]; then
             warn "DMARC not present for $1 in $ns"
             ret_code=1
@@ -313,7 +324,14 @@ dmarc()
 bgp_msg()
 {
     [ ${1} -eq 0 ] && return
-    echo ""
+    info "It is often useful to see which ASN are responsible for the"
+    info "nameservers's origin, only then we can see if said ASNs are signing"
+    info "the routes that they advertise (ROA), this implicates that any other"
+    info "ASN can advertise the same route and effectively cause a DOS, or,"
+    info "in the worse case, a subnet takeover."
+    info "Another important thing to check is georedundancy. Always check the"
+    info "geographic zone in which an ASN is located. This is important to"
+    info "guarantee availability."
 }
 
 bgp()
