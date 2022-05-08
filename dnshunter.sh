@@ -212,10 +212,15 @@ dnssec_msg()
 dnssec()
 {
     msg "[dnssec] Running checks for compliance"
-    if ! dig DNSKEY "$1" +short | grep ''; then
-        warn "Failed: DNSSEC not implemented"
-        return 1
-    fi
+    ret_code=0
+    for ns in $NAMESERVERS; do
+        if ! dig DNSKEY "$1" +short @"$ns" | grep '' >/dev/null; then
+            warn "Failed: DNSSEC not implemented in $ns"
+            ret_code=1
+        else 
+            info "DNSSEC implemented for $1 in $ns"
+        fi
+    done; return $ret_code
 }
 
 ### Mail records
@@ -232,11 +237,13 @@ spf_msg()
 
 check_spf()
 {
+    ok=0
     _spf="$( dig TXT $1 +short @$2 | grep -i 'v=spf1' )"
     if [ -z "$_spf" ]; then
         warn "${3}No SPF for $1 in $2"
     elif echo $_spf | grep -- '-all' >/dev/null; then
         info "${3}Secure SPF for $1 in $2"
+        ok=1
     elif echo $_spf | grep -- '~all' >/dev/null; then
         warn "${3}Partially Secure (~all) SPF for $1 in $2"
         ret_code=1
@@ -247,10 +254,12 @@ check_spf()
         warn "${3}Insecure (?all) SPF for $1 in $ns"
         ret_code=1
     fi
-    spf_recur="$( echo $_spf | grep -oE "(redirect=|include:)[^ \"]*" | sed "s/include://;s/redirect=//" | sort -u )"
-    for ss in ${spf_recur}; do
-        check_spf ${ss} "$2" "${3}    " || ret_code=1
-    done
+    if [ "$ok" -ne 1 ]; then 
+        spf_recur="$( echo $_spf | grep -oE "(redirect=|include:)[^ \"]*" | sed "s/include://;s/redirect=//" | sort -u )"
+        for ss in ${spf_recur}; do
+            check_spf ${ss} "$2" "${3}    " || ret_code=1
+        done
+    fi
     return $ret_code
 }
 
@@ -340,9 +349,9 @@ bgp()
     ret_code=0
     for ns in $NAMESERVERS; do
         nsip="$( dig A $ns +short )"
-        assn="$assn $( whois -h whois.cymru.com "-v $nsip" | tail -n +3 | tr -d ' ' | cut -d '|' -f 1,3,7 | tr '\n' ' ' )"
+        #assn="$assn $( whois -h whois.cymru.com "-v $nsip" | tail -n +3 | tr -d ' ' | cut -d '|' -f 1,3,7 | tr '\n' ' ' )"
     done
-    if [ "$assn" = " " ]; then
+    if [ -z "$assn" ]; then
         warn "Could not retrieve info from whois.cymru.com database"
         warn "check with Hurricane: https://bgp.he.net/"
         return 1
