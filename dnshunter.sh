@@ -21,19 +21,6 @@ msg()  { echo "${BOLD}${GREEN}[+] ${*}${RESET}"; }
 # simple echo info wrapper
 info() { echo "${*}"; }
 
-### DNS version and banner
-###############################################################################
-
-version()
-{
-    msg "[version] Checking info of nameservers"
-    # get all nameservers for a specific domain and launch nmap on them
-    for ns in $NAMESERVERS; do
-        nmap --script dns-nsid -p 53 -Pn -sV -oG - "$ns"
-        dig version.bind CHAOS TXT @"$ns" +short
-    done
-}
-
 ### SOA information and suggestions
 ### https://en.wikipedia.org/wiki/SOA_record
 ###############################################################################
@@ -77,8 +64,7 @@ soa_info()
     # (1 gen 1970) with id=00, this value should tell the day and revision in
     # which it was last modified
     dummy_u="$( date +'%Y%m%d' )99"; dummy_l="$( date -d @0 +'%Y%m%d' )00"
-    if date +'%Y%m%d' -d "${serial%??}" >/dev/null 2>&1 \
-    || [ $dummy_u -lt $serial ] || [ $dummy_l -gt $serial ]; then
+    if date +'%Y%m%d' -d "${serial%??}" >/dev/null 2>&1 || [ $dummy_u -lt $serial ] || [ $dummy_l -gt $serial ]; then
         warn "Serial number: $serial - should follow standard (RIPE-203)"
         ret_code=1
     else
@@ -399,7 +385,6 @@ usage()
     echo ""
     echo "    -h|--help          Display help and exit"
     echo "    -v|--verbose       Show verbose output"
-    echo "    -a|--aggressive    Run in aggressive mode"
     echo "    -d|--domain        Specify target domain"
     echo "    -n|--file-ns       File with nameservers (new-line separated)"
     echo ""
@@ -415,9 +400,8 @@ VERBOSE=0; AGGRESS=0
 while [ $# -ne 0 ]; do case $1 in
     -h|--help)       usage; exit 0 ;;
     -v|--verbose)    VERBOSE=1 ;;
-    -a|--aggressive) AGGRESS=1 ;;
     -d|--domain)     shift; TARGET=$1 ;;
-    -n|--file-ns)    shift; NAMESERVERS="$1" ;;
+    -n|--file-ns)    shift; [ -f "$NAMESERVERS" ] && export NAMESERVERS="$( cat "$NAMESERVERS" | tr '\n' ' ' )" ;;
     *)               usage; err "Unrecognized option $1" ;;
 esac; shift; done
 
@@ -425,14 +409,8 @@ if [ -z $TARGET ]; then
     err "Target domain not defined (-d|--domain)"
 fi
 
-if [ -n "$NAMESERVERS" ] && [ -f "$NAMESERVERS" ]; then
-    export NAMESERVERS="$( cat "$NAMESERVERS" | tr '\n' ' ' )"
-else
+if [ -z "$NAMESERVERS" ]; then
     export NAMESERVERS=$( dig NS "$TARGET" +short | sed 's/\.$//g' | tr '\n' ' ' )
-fi
-
-if [ $AGGRESS -eq 1 ]; then
-    version $TARGET
 fi
 
 checks="soa_info zone_transfer any_query glue_record dnssec spf dmarc dkim bgp"
