@@ -16,7 +16,7 @@ err() { echo >&2 "${BOLD}${RED}[-] ERROR: ${*}${RESET}"; exit 1337; }
 warn() { echo >&2 "${BOLD}${YELLOW}[!] WARNING: ${*}${RESET}"; }
 
 # simple message wrapper
-msg()  { echo "${BOLD}${GREEN}[+] ${*}${RESET}"; }
+msg() { echo "${BOLD}${GREEN}[+] ${*}${RESET}"; }
 
 # simple echo info wrapper
 info() { echo "${*}"; }
@@ -27,8 +27,6 @@ info() { echo "${*}"; }
 
 soa_info_msg()
 {
-    [ ${1} -eq 0 ] && return
-
     info "It is reccomended to set this records properly, following the"
     info "RIPE-203 guides (https://www.ripe.net/publications/docs/ripe-203),"
     info "to improve performance due to less computational steps to comform"
@@ -108,7 +106,6 @@ soa_info()
 
 glue_record_msg()
 {
-    [ ${1} -eq 0 ] && return
     info "Glue records are meant to avoid cyclic queries between nameservers"
     info "You should 'Glue' records for NS in the additional section of the"
     info "answer. The severity of this misconfiguration is arguably medium"
@@ -132,7 +129,6 @@ glue_record()
 
 any_query_msg()
 {
-    [ ${1} -eq 0 ] && return
     info "Answering to ANY queries might get the nameserver to suffer from"
     info "DNS Amplification Attacks, basically ddos attacks based on the fact"
     info "that the answer given by the DNS is much larger that the request"
@@ -159,7 +155,6 @@ any_query()
 
 zone_transfer_msg()
 {
-    [ ${1} -eq 0 ] && return
     info "The nameserver allows zone transfers from unauthorized sources, this"
     info "leads to the disclosure of all the zone's domains handled by the dns" 
     info "(at best). In the worse case scenario, the attacker might be able to" 
@@ -188,7 +183,6 @@ zone_transfer()
 
 dnssec_msg()
 {
-    [ ${1} -eq 0 ] && return
     info "DNSSEC is a suite of extensions aimed to guarantee secure data"
     info "exchange between the name server and the client. It guarantees data"
     info "integrity and denial of exitence. Its mean is to avoid zone"
@@ -216,7 +210,6 @@ dnssec()
 
 spf_msg()
 {
-    [ ${1} -eq 0 ] && return
     info "SPF is a TXT record that prevents mail spoofing by verifying servers"
     info "that are allowed to send emails using the specified domain"
 }
@@ -260,7 +253,6 @@ spf()
 
 dkim_msg()
 {
-    [ ${1} -eq 0 ] && return
     info "DKIM is a TXT record that guarantees that a particular email comes"
     info "from the advertised organization."
 }
@@ -288,7 +280,6 @@ dkim()
 
 dmarc_msg()
 {
-    [ ${1} -eq 0 ] && return
     info "DMARC is a record that correlates SPF and DKIM and takes action"
     info "according to its policy: none, quarantine, reject."
 }
@@ -318,7 +309,6 @@ dmarc()
 
 bgp_msg()
 {
-    [ ${1} -eq 0 ] && return
     info "It is often useful to see which ASN are responsible for the"
     info "nameservers's origin, only then we can see if said ASNs are signing"
     info "the routes that they advertise (ROA), this implicates that any other"
@@ -335,7 +325,7 @@ bgp()
     ret_code=0
     for ns in $NAMESERVERS; do
         nsip="$( dig A $ns +short )"
-        #assn="$assn $( whois -h whois.cymru.com "-v $nsip" | tail -n +3 | tr -d ' ' | cut -d '|' -f 1,3,7 | tr '\n' ' ' )"
+        assn="$assn $( whois -h whois.cymru.com "-v $nsip" | tail -n +3 | tr -d ' ' | cut -d '|' -f 1,3,7 | tr '\n' ' ' )"
     done
     if [ -z "$assn" ]; then
         warn "Could not retrieve info from whois.cymru.com database"
@@ -345,14 +335,12 @@ bgp()
     assn="$( echo $assn | tr ' ' '\n' | sort -u | tr '\n' ' ' )"
 
     for asrt in $assn; do
-        as="$( echo ${asrt} | cut -d '|' -f 1 )"
-        sn="$( echo ${asrt} | cut -d '|' -f 2 )"
-        if whois -h whois.bgpmon.net " --roa $as $sn" | grep "Not Found" &>/dev/null; then
-            warn "No ROA for $sn originated by $as"
-            ret_code=1
-        fi
-        geo="${geo} $( echo ${asrt} | cut -d '|' -f 2 | cut -d ',' -f 2 )"
+        geo="${geo} $( echo ${asrt} | cut -d '|' -f 3 | cut -d ',' -f 2 )"
     done
+    
+    # Deprecated bgpmon because of Cisco
+    warn "Cannot verify ROA as bgpmon is now behind API key"
+    warn "check with Hurricane: https://bgp.he.net/"
     
     ngeoloc="$( echo "$geo" | tr -s ' ' | sed "s/^\s//g" | tr ' ' '\n' | sort -u | wc -l )"
     case "$ngeoloc" in
@@ -365,6 +353,7 @@ bgp()
             ret_code=1
             ;;
         *)
+            info "Found $ngeoloc geographic locations for nameservers: $NAMESERVERS"
             nasn="$( echo $assn | tr ' ' '\n' | wc -l )"
             if [ "$nasn" -gt 3 ] && [ $( expr "$nasn" / 2 ) -gt "$ngeoloc" ]; then
                 warn "Ideally, you should have every 1 or 2 ASNs in different"
@@ -381,26 +370,27 @@ bgp()
 
 usage()
 {
-    echo "Usage: dns-hunter.sh [-h] [-v] [-a] [-n <file>] -d DOMAIN"
+    echo "Usage: dnshunter [-h] [-v] [-o <outfile>] [-n <file>] -d DOMAIN"
     echo ""
     echo "    -h|--help          Display help and exit"
     echo "    -v|--verbose       Show verbose output"
+    echo "    -o|--outfile       Save output in JSON format"
     echo "    -d|--domain        Specify target domain"
     echo "    -n|--file-ns       File with nameservers (new-line separated)"
     echo ""
 }
 
 # check for needed software
-NEEDED="whois dig nmap expr"
+NEEDED="whois dig expr"
 if ! command -v $( echo $NEEDED ) >/dev/null; then
     err "The script needs the following binaries to work: $NEEDED"
 fi
 
-VERBOSE=0; AGGRESS=0
 while [ $# -ne 0 ]; do case $1 in
     -h|--help)       usage; exit 0 ;;
-    -v|--verbose)    VERBOSE=1 ;;
-    -d|--domain)     shift; TARGET=$1 ;;
+    -v|--verbose)    export VERBOSE=1 ;;
+    -d|--domain)     shift; TARGET="$1" ;;
+    -o|--outfile)    shift; export OUTFILE="$1" ;;
     -n|--file-ns)    shift; [ -f "$NAMESERVERS" ] && export NAMESERVERS="$( cat "$NAMESERVERS" | tr '\n' ' ' )" ;;
     *)               usage; err "Unrecognized option $1" ;;
 esac; shift; done
@@ -417,9 +407,9 @@ checks="soa_info zone_transfer any_query glue_record dnssec spf dmarc dkim bgp"
 for check in $checks; do
     if ${check} "${TARGET}"; then
         msg "No misconfiguration found"
-    else
-        echo 
-        ${check}_msg "${VERBOSE}"
+    elif [ -n "$VERBOSE" ]; then
+        echo
+        ${check}_msg
     fi; echo
 done
 
