@@ -400,7 +400,7 @@ if [ -z $TARGET ]; then
 fi
 
 if [ -z "$NAMESERVERS" ]; then
-    export NAMESERVERS=$( dig NS "$TARGET" +short | sed 's/\.$//g' | tr '\n' ' ' )
+    export NAMESERVERS="$( dig NS "$TARGET" +short | sed 's/\.$//g' | tr '\n' ' ' )"
 fi
 
 checks="soa_info zone_transfer any_query glue_record dnssec spf dmarc dkim bgp"
