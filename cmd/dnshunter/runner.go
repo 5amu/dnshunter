@@ -20,7 +20,15 @@ func run(outfile string, nsfile string, domain string) error {
 	if err != nil {
 		return err
 	}
-	common.Info(fmt.Sprintf("Using nameservers: %v\n", nameservers))
+
+	initialInfo := common.Info(fmt.Sprintf("scanning domain   : %v\n", domain))
+	initialInfo += common.Info(fmt.Sprintf("using nameservers : %v\n", nameservers))
+	if outfile != "" {
+		initialInfo += common.Info(fmt.Sprintf("saving output to  : %v\n", outfile))
+	} else {
+		initialInfo += common.Info("saving output to  : /dev/null\n")
+	}
+	fmt.Println(initialInfo)
 
 	var results []*output.CheckOutput
 	for _, check := range internal.CheckList {
@@ -36,7 +44,7 @@ func run(outfile string, nsfile string, domain string) error {
 		if data, err := json.Marshal(results); err != nil {
 			return err
 		} else {
-			if err := os.WriteFile(outfile, data, os.ModeAppend); err != nil {
+			if err := os.WriteFile(outfile, data, 0644); err != nil {
 				return err
 			}
 		}

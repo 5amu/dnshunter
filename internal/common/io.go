@@ -20,26 +20,26 @@ var colors = map[string]string{
 	"reset":   "\033[0m",    // reset
 }
 
-func generic(s string, color string) {
-	fmt.Printf("%v%v%v\n", color, s, colors[Reset])
+func generic(s string, color string) string {
+	return fmt.Sprintf("%v%v%v", color, s, colors[Reset])
 }
 
-func Banner(s string) {
-	generic(s, colors[BannerLevel])
+func Banner(s string) string {
+	return generic(s, colors[BannerLevel])
 }
 
-func Info(s string) {
-	generic(s, colors[InfoLevel])
+func Info(s string) string {
+	return generic(s, colors[InfoLevel])
 }
 
-func Warn(s string) {
-	generic(fmt.Sprintf("[WARNING]: %v", s), colors[WarnLevel])
+func Warn(s string) string {
+	return generic(fmt.Sprintf("[WARNING]: %v", s), colors[WarnLevel])
 }
 
-func Header(s string) {
-	generic(fmt.Sprintf("[!] %v [!]", s), colors[HeaderLevel])
+func Header(s string) string {
+	return generic(fmt.Sprintf("[!] %v [!]", s), colors[HeaderLevel])
 }
 
-func Error(s string) {
-	generic(fmt.Sprintf("[ERROR]: %v", s), colors[ErrorLevel])
+func Error(s string) string {
+	return generic(fmt.Sprintf("[ERROR]: %v", s), colors[ErrorLevel])
 }

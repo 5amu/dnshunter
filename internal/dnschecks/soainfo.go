@@ -97,7 +97,8 @@ func parseSOA(soa string) (isVuln bool, message string) {
 			dummyUpper, _ := time.Parse("%s", fmt.Sprintf("%v", time.Now().Unix()))
 
 			if serialDate.After(dummyUpper) || serialDate.Before(dummyLower) {
-				message += fmt.Sprintf("[WARNING] Serial number: %v - should follow standards (RIPE-203)\n", part)
+				message += common.Warn(fmt.Sprintf("Serial number: %v - should follow standards (RIPE-203)\n", part))
+				isVuln = true
 			} else {
 				message += fmt.Sprintf("Serial number: %v\n", part)
 			}
@@ -105,7 +106,8 @@ func parseSOA(soa string) (isVuln bool, message string) {
 			refresh, _ := time.ParseDuration(fmt.Sprintf("%vs", part))
 
 			if refresh < (24 * time.Hour) {
-				message += fmt.Sprintf("[WARNING] Refresh: %v - should follow standards (RIPE-203)\n", part)
+				message += common.Warn(fmt.Sprintf("Refresh: %v - should follow standards (RIPE-203)\n", part))
+				isVuln = true
 			} else {
 				message += fmt.Sprintf("Refresh: %v\n", part)
 			}
@@ -113,7 +115,8 @@ func parseSOA(soa string) (isVuln bool, message string) {
 			retry, _ := time.ParseDuration(fmt.Sprintf("%vs", part))
 
 			if retry < (2 * time.Hour) {
-				message += fmt.Sprintf("[WARNING] Retry: %v - should follow standards (RIPE-203)\n", part)
+				message += common.Warn(fmt.Sprintf("Retry: %v - should follow standards (RIPE-203)\n", part))
+				isVuln = true
 			} else {
 				message += fmt.Sprintf("Retry: %v\n", part)
 			}
@@ -121,7 +124,8 @@ func parseSOA(soa string) (isVuln bool, message string) {
 			expire, _ := time.ParseDuration(fmt.Sprintf("%vs", part))
 
 			if expire < (1000 * time.Hour) {
-				message += fmt.Sprintf("[WARNING] Expire: %v - should follow standards (RIPE-203)\n", part)
+				message += common.Warn(fmt.Sprintf("Expire: %v - should follow standards (RIPE-203)\n", part))
+				isVuln = true
 			} else {
 				message += fmt.Sprintf("Expire: %v\n", part)
 			}

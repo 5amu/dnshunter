@@ -1,6 +1,10 @@
 package output
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/5amu/dnshunter/internal/common"
+)
 
 type CheckOutput struct {
 	Name        string   `json:"name"`
@@ -11,8 +15,7 @@ type CheckOutput struct {
 }
 
 func (o *CheckOutput) String() string {
-	// TODO: make colored output
-	s := "[!] Check: %v - vulnerable: %v\n"
-	s += "%v\n"
-	return fmt.Sprintf(s, o.Name, o.Vulnerable, o.Message)
+	s := common.Header(fmt.Sprintf("Check: %v - vulnerable: %v", o.Name, o.Vulnerable))
+	s += o.Message
+	return s
 }

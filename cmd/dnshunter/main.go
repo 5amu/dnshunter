@@ -9,14 +9,14 @@ import (
 )
 
 func banner() {
-	common.Banner("")
-	common.Banner("    ·▄▄▄▄   ▐ ▄ .▄▄ ·  ▄ .▄▄• ▄▌ ▐ ▄ ▄▄▄▄▄▄▄▄ .▄▄▄   ")
-	common.Banner("    ██▪ ██ •█▌▐█▐█ ▀. ██▪▐██▪██▌•█▌▐█•██  ▀▄.▀·▀▄ █· ")
-	common.Banner("    ▐█· ▐█▌▐█▐▐▌▄▀▀▀█▄██▀▐██▌▐█▌▐█▐▐▌ ▐█.▪▐▀▀▪▄▐▀▀▄  ")
-	common.Banner("    ██. ██ ██▐█▌▐█▄▪▐███▌▐▀▐█▄█▌██▐█▌ ▐█▌·▐█▄▄▌▐█•█▌ ")
-	common.Banner("    ▀▀▀▀▀• ▀▀ █▪ ▀▀▀▀ ▀▀▀ · ▀▀▀ ▀▀ █▪ ▀▀▀  ▀▀▀ .▀  ▀ ")
-	common.Banner("                   -by 5amu (https://github.com/5amu)")
-	common.Banner("")
+	fmt.Println("")
+	fmt.Println(common.Banner("    ·▄▄▄▄   ▐ ▄ .▄▄ ·  ▄ .▄▄• ▄▌ ▐ ▄ ▄▄▄▄▄▄▄▄ .▄▄▄   "))
+	fmt.Println(common.Banner("    ██▪ ██ •█▌▐█▐█ ▀. ██▪▐██▪██▌•█▌▐█•██  ▀▄.▀·▀▄ █· "))
+	fmt.Println(common.Banner("    ▐█· ▐█▌▐█▐▐▌▄▀▀▀█▄██▀▐██▌▐█▌▐█▐▐▌ ▐█.▪▐▀▀▪▄▐▀▀▄  "))
+	fmt.Println(common.Banner("    ██. ██ ██▐█▌▐█▄▪▐███▌▐▀▐█▄█▌██▐█▌ ▐█▌·▐█▄▄▌▐█•█▌ "))
+	fmt.Println(common.Banner("    ▀▀▀▀▀• ▀▀ █▪ ▀▀▀▀ ▀▀▀ · ▀▀▀ ▀▀ █▪ ▀▀▀  ▀▀▀ .▀  ▀ "))
+	fmt.Println(common.Banner("                   -by 5amu (https://github.com/5amu)"))
+	fmt.Println("")
 }
 
 func usage() {
@@ -50,13 +50,13 @@ func main() {
 	banner()
 
 	if err := mainFlagSet.Parse(os.Args[1:]); err != nil {
-		fmt.Println(err)
+		common.Error(fmt.Sprintf("%v", err))
 		os.Exit(1)
 	}
 
 	if len(os.Args) < 2 {
 		usage()
-		fmt.Println("not enough arguments")
+		common.Error("not enough arguments")
 		os.Exit(1)
 	}
 
@@ -66,19 +66,19 @@ func main() {
 	}
 
 	if vers1 || vers2 {
-		fmt.Printf("version %v\n", common.DNSHunterVersion)
+		common.Error(fmt.Sprintf("version %v\n", common.DNSHunterVersion))
 		os.Exit(0)
 	}
 
 	if len(mainFlagSet.Args()) != 1 {
 		usage()
-		fmt.Println("please, specify a target domain")
+		common.Error("please, specify a target domain")
 		os.Exit(1)
 	}
 
 	domain := mainFlagSet.Arg(0)
 	if err := run(outfile, nsfile, domain); err != nil {
-		fmt.Println(err)
+		common.Error(fmt.Sprintf("%v", err))
 		os.Exit(1)
 	}
 }
