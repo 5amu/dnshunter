@@ -20,7 +20,7 @@ func run(outfile string, nsfile string, domain string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println(nameservers)
+	common.Info(fmt.Sprintf("Using nameservers: %v\n", nameservers))
 
 	var results []*output.CheckOutput
 	for _, check := range internal.CheckList {
