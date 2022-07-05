@@ -50,13 +50,13 @@ func main() {
 	banner()
 
 	if err := mainFlagSet.Parse(os.Args[1:]); err != nil {
-		common.Error(fmt.Sprintf("%v", err))
+		fmt.Println(common.Error(fmt.Sprintf("%v", err)))
 		os.Exit(1)
 	}
 
 	if len(os.Args) < 2 {
 		usage()
-		common.Error("not enough arguments")
+		fmt.Println(common.Error("not enough arguments"))
 		os.Exit(1)
 	}
 
@@ -66,19 +66,19 @@ func main() {
 	}
 
 	if vers1 || vers2 {
-		common.Error(fmt.Sprintf("version %v\n", common.DNSHunterVersion))
+		fmt.Println(common.Error(fmt.Sprintf("version %v\n", common.DNSHunterVersion)))
 		os.Exit(0)
 	}
 
 	if len(mainFlagSet.Args()) != 1 {
 		usage()
-		common.Error("please, specify a target domain")
+		fmt.Println(common.Error("please, specify a target domain"))
 		os.Exit(1)
 	}
 
 	domain := mainFlagSet.Arg(0)
 	if err := run(outfile, nsfile, domain); err != nil {
-		common.Error(fmt.Sprintf("%v", err))
+		fmt.Println(common.Error(fmt.Sprintf("%v", err)))
 		os.Exit(1)
 	}
 }

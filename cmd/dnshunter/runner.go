@@ -23,6 +23,13 @@ func run(outfile string, nsfile string, domain string) error {
 
 	initialInfo := common.Info(fmt.Sprintf("scanning domain   : %v\n", domain))
 	initialInfo += common.Info(fmt.Sprintf("using nameservers : %v\n", nameservers))
+
+	nameservers, err = nameserversToIPv4(nameservers)
+	if err != nil {
+		return err
+	}
+
+	initialInfo += common.Info(fmt.Sprintf("with IPv4 version : %v\n", nameservers))
 	if outfile != "" {
 		initialInfo += common.Info(fmt.Sprintf("saving output to  : %v\n", outfile))
 	} else {
@@ -33,11 +40,14 @@ func run(outfile string, nsfile string, domain string) error {
 	var results []*output.CheckOutput
 	for _, check := range internal.CheckList {
 		check.Init(c)
-		check.Start(domain, nameservers)
+
+		if err := check.Start(domain, nameservers); err != nil {
+			return err
+		}
 
 		r := check.Results()
+		fmt.Println(r.String())
 		results = append(results, r)
-		fmt.Println(r)
 	}
 
 	if outfile != "" {
@@ -78,12 +88,43 @@ func nameserversFromDNS(domain string) (result []string, err error) {
 	}
 
 	for _, r := range r.Answer {
-		// google.com.	14332	IN	NS	ns3.google.com.
-		splitted := strings.Split(r.String(), "\t")
-		last := splitted[len(splitted)-1]
-
-		result = append(result, last)
+		switch t := r.(type) {
+		case *dns.NS:
+			// google.com.	14332	IN	NS	ns3.google.com.
+			splitted := strings.Split(t.String(), "\t")
+			last := splitted[len(splitted)-1]
+			result = append(result, last)
+		}
 	}
 
 	return result, nil
+}
+
+func nameserversToIPv4(fqdns []string) (result []string, err error) {
+	for _, fqdn := range fqdns {
+
+		c := new(dns.Client)
+		m := new(dns.Msg)
+		m.SetQuestion(fqdn, dns.TypeA)
+
+		r, _, err := c.Exchange(m, net.JoinHostPort(common.DefaultNameserver, "53"))
+		if err != nil {
+			return nil, err
+		}
+
+		if r.Rcode != dns.RcodeSuccess {
+			return nil, fmt.Errorf("invalid answer from %v after A query for %v", common.DefaultNameserver, fqdn)
+		}
+
+		for _, r := range r.Answer {
+			switch t := r.(type) {
+			case *dns.A:
+				// google.com.	14332	IN	NS	ns3.google.com.
+				splitted := strings.Split(t.String(), "\t")
+				last := splitted[len(splitted)-1]
+				result = append(result, last)
+			}
+		}
+	}
+	return
 }
