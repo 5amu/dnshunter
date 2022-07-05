@@ -26,7 +26,7 @@ func (c *SOACheck) Start(domain string, nameservers []string) error {
 
 	m := new(dns.Msg)
 	m.SetQuestion(dns.Fqdn(domain), dns.TypeSOA)
-	m.RecursionDesired = false
+	m.RecursionDesired = true
 
 	r, _, err := c.client.Exchange(m, net.JoinHostPort(common.DefaultNameserver, "53"))
 	if err != nil {
@@ -70,6 +70,7 @@ func (c *SOACheck) Results() *output.CheckOutput {
 }
 
 func parseSOA(soa string) (isVuln bool, message string) {
+	message += "\n"
 
 	splitted := strings.Split(soa, "SOA")
 	if len(splitted) < 2 {
@@ -81,6 +82,9 @@ func parseSOA(soa string) (isVuln bool, message string) {
 	s := regexp.MustCompile(`\s+`)
 	record := string(s.ReplaceAll([]byte(splitted[1]), []byte(" ")))
 
+	message += "Checking if SOA record follows RIPE-203 standard\n"
+	message += "more info at https://www.ripe.net/publications/docs/ripe-203\n\n"
+
 	for i, part := range strings.Split(record, " ") {
 		switch i {
 		case SOAName:
@@ -88,9 +92,7 @@ func parseSOA(soa string) (isVuln bool, message string) {
 		case SOARecord:
 			message += fmt.Sprintf("Start of Authority: %v\n", part)
 		case SOASerial:
-			d := part[:len(part)-2]
-
-			serialDate, _ := time.Parse("%Y%m%d", d)
+			serialDate, _ := time.Parse("%Y%m%d", part[:len(part)-2])
 			dummyLower, _ := time.Parse("%s", "0")
 			dummyUpper, _ := time.Parse("%s", fmt.Sprintf("%v", time.Now().Unix()))
 
@@ -102,13 +104,31 @@ func parseSOA(soa string) (isVuln bool, message string) {
 		case SOARefresh:
 			refresh, _ := time.ParseDuration(fmt.Sprintf("%vs", part))
 
-			if refresh < (2 * time.Hour) {
+			if refresh < (24 * time.Hour) {
 				message += fmt.Sprintf("[WARNING] Refresh: %v - should follow standards (RIPE-203)\n", part)
 			} else {
 				message += fmt.Sprintf("Refresh: %v\n", part)
 			}
+		case SOARetry:
+			retry, _ := time.ParseDuration(fmt.Sprintf("%vs", part))
 
+			if retry < (2 * time.Hour) {
+				message += fmt.Sprintf("[WARNING] Retry: %v - should follow standards (RIPE-203)\n", part)
+			} else {
+				message += fmt.Sprintf("Retry: %v\n", part)
+			}
+		case SOAExpire:
+			expire, _ := time.ParseDuration(fmt.Sprintf("%vs", part))
+
+			if expire < (1000 * time.Hour) {
+				message += fmt.Sprintf("[WARNING] Expire: %v - should follow standards (RIPE-203)\n", part)
+			} else {
+				message += fmt.Sprintf("Expire: %v\n", part)
+			}
+		case SOATTL:
+			message += fmt.Sprintf("TTL: %v\n", part)
 		}
 	}
+	message += "\n"
 	return
 }
