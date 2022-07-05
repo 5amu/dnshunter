@@ -4,7 +4,7 @@ import "fmt"
 
 const (
 	BannerLevel = "banner"
-	HighLevel   = "high"
+	ErrorLevel  = "high"
 	WarnLevel   = "warning"
 	HeaderLevel = "header"
 	Reset       = "reset"
@@ -20,14 +20,26 @@ var colors = map[string]string{
 	"reset":   "\033[0m",    // reset
 }
 
+func generic(s string, color string) {
+	fmt.Printf("%v%v%v\n", color, s, colors[Reset])
+}
+
 func Banner(s string) {
-	fmt.Printf("%v%v%v\n", colors[BannerLevel], s, colors[Reset])
+	generic(s, colors[BannerLevel])
 }
 
 func Info(s string) {
-	fmt.Printf("%v%v%v\n", colors[InfoLevel], s, colors[Reset])
+	generic(s, colors[InfoLevel])
 }
 
 func Warn(s string) {
-	fmt.Printf("%v[WARNING]: %v%v\n", colors[WarnLevel], s, colors[Reset])
+	generic(fmt.Sprintf("[WARNING]: %v", s), colors[WarnLevel])
+}
+
+func Header(s string) {
+	generic(fmt.Sprintf("[!] %v [!]", s), colors[HeaderLevel])
+}
+
+func Error(s string) {
+	generic(fmt.Sprintf("[ERROR]: %v", s), colors[ErrorLevel])
 }
