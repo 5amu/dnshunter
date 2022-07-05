@@ -1,5 +1,7 @@
 package output
 
+import "fmt"
+
 type CheckOutput struct {
 	Name        string   `json:"name"`
 	Domain      string   `json:"domain"`
@@ -9,5 +11,8 @@ type CheckOutput struct {
 }
 
 func (o *CheckOutput) String() string {
-	return ""
+	s := "=> Check: %v / Vulnerable: %v\n"
+	s += "====> domain: %v\n"
+	s += "====> nameservers: %v\n%v"
+	return fmt.Sprintf(s, o.Name, o.Vulnerable, o.Domain, o.Nameservers, o.Message)
 }

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/5amu/dnshunter/internal"
+	"github.com/5amu/dnshunter/internal/common"
 )
 
 func banner() {
@@ -66,7 +66,7 @@ func main() {
 	}
 
 	if vers1 || vers2 {
-		fmt.Printf("version %v\n", internal.DNSHunterVersion)
+		fmt.Printf("version %v\n", common.DNSHunterVersion)
 		os.Exit(0)
 	}
 
