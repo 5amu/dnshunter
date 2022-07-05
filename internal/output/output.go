@@ -11,8 +11,8 @@ type CheckOutput struct {
 }
 
 func (o *CheckOutput) String() string {
-	s := "=> Check: %v / Vulnerable: %v\n"
-	s += "====> domain: %v\n"
-	s += "====> nameservers: %v\n%v"
-	return fmt.Sprintf(s, o.Name, o.Vulnerable, o.Domain, o.Nameservers, o.Message)
+	// TODO: make colored output
+	s := "[!] Check: %v - vulnerable: %v\n"
+	s += "%v\n"
+	return fmt.Sprintf(s, o.Name, o.Vulnerable, o.Message)
 }
