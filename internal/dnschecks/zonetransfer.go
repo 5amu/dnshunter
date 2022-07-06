@@ -54,7 +54,7 @@ func (c *AXFRCheck) Start(domain string, nameservers *common.Nameservers) error 
 		var vuln []dns.RR
 		for r := range channel {
 			if r.Error != nil || len(r.RR) == 0 {
-				message += fmt.Sprintf("nameserver %v don't accept unauthenticated zone transfers\n", fqdn)
+				message += fmt.Sprintf("nameserver %v doesn't accept unauthenticated zone transfers\n", fqdn)
 				continue
 			}
 			vulnerable = true
@@ -64,7 +64,16 @@ func (c *AXFRCheck) Start(domain string, nameservers *common.Nameservers) error 
 		if vulnerable {
 			message += common.Warn(fmt.Sprintf("nameserver %v accepts unauthenticated zone transfers\n", fqdn))
 			for _, v := range vuln {
-				message += common.Warn(fmt.Sprintln(v.String()))
+				switch t := v.(type) {
+				case *dns.A:
+					message += common.Warn(fmt.Sprintf("%v ==> (%v) %v\n", t.Hdr.Name, "A", t.A))
+				case *dns.AAAA:
+					message += common.Warn(fmt.Sprintf("%v ==> (%v) %v\n", t.Hdr.Name, "AAAA", t.AAAA))
+				case *dns.TXT:
+					message += common.Warn(fmt.Sprintf("%v ==> (%v) %v\n", t.Hdr.Name, "TXT", t.Txt[0]))
+				case *dns.MX:
+					message += common.Warn(fmt.Sprintf("%v ==> (%v) %v\n", t.Hdr.Name, "MX", t.Mx))
+				}
 			}
 		}
 		isVuln = vulnerable || isVuln
