@@ -16,4 +16,8 @@ type Check interface {
 var CheckList = []Check{
 	new(dnschecks.SOACheck),
 	new(dnschecks.GLUECheck),
+	new(dnschecks.ANYCheck),
+	new(dnschecks.AXFRCheck),
+	new(dnschecks.DNSSECCheck),
+	new(dnschecks.SPFCheck),
 }

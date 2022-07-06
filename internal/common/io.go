@@ -24,22 +24,38 @@ func generic(s string, color string) string {
 	return fmt.Sprintf("%v%v%v", color, s, colors[Reset])
 }
 
+// Banner formats the provided string into banner format
 func Banner(s string) string {
 	return generic(s, colors[BannerLevel])
 }
 
+// Info formats the provided string into info format
 func Info(s string) string {
 	return generic(s, colors[InfoLevel])
 }
 
+// Warn formats the provided string into warning format
+// it is used when a portion of a check detects a vulnerability
 func Warn(s string) string {
 	return generic(fmt.Sprintf("[WARNING]: %v", s), colors[WarnLevel])
 }
 
+// Header formats the provided string into header format
+// it is used to format header of the output for a check
 func Header(s string) string {
 	return generic(fmt.Sprintf("[!] %v [!]", s), colors[HeaderLevel])
 }
 
+// Error formats the provided string into error format
+// it is used to format errors to be printed out on stdout
 func Error(s string) string {
 	return generic(fmt.Sprintf("[ERROR]: %v", s), colors[ErrorLevel])
+}
+
+func SpfOK(s string) string {
+	return fmt.Sprintf("[OKAY]: %v", s)
+}
+
+func SpfNotOK(s string) string {
+	return generic(fmt.Sprintf("[WARN]: %v", s), colors[WarnLevel])
 }
