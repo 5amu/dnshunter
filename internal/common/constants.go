@@ -2,7 +2,7 @@ package common
 
 const (
 	// DNSHunterVersion tracks the version of the program
-	DNSHunterVersion = "v1.0-dev"
+	DNSHunterVersion = "v0.1-beta"
 	// DefaultNameserver is used when no other nameserver has been specified
 	// it is equivalent to dns.google.com
 	DefaultNameserver = "8.8.8.8"
