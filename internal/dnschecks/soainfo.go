@@ -22,7 +22,7 @@ func (c *SOACheck) Init(client *dns.Client) error {
 	return nil
 }
 
-func (c *SOACheck) Start(domain string, nameservers []string) error {
+func (c *SOACheck) Start(domain string, nameservers *common.Nameservers) error {
 
 	m := new(dns.Msg)
 	m.SetQuestion(dns.Fqdn(domain), dns.TypeSOA)
