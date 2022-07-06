@@ -19,4 +19,5 @@ var CheckList = []Check{
 	new(dnschecks.ANYCheck),
 	new(dnschecks.AXFRCheck),
 	new(dnschecks.DNSSECCheck),
+	new(dnschecks.SPFCheck),
 }
