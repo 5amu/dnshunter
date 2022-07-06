@@ -109,13 +109,18 @@ func nameserversToIPv4(fqdns []string) (result []net.IP, err error) {
 			return nil, fmt.Errorf("invalid answer from %v after A query for %v", DefaultNameserver, fqdn)
 		}
 
+		stop := false
 		for _, r := range r.Answer {
+			if stop {
+				break
+			}
 			switch t := r.(type) {
 			case *dns.A:
 				// google.com.	14332	IN	NS	ns3.google.com.
 				splitted := strings.Split(t.String(), "\t")
 				last := splitted[len(splitted)-1]
 				result = append(result, net.ParseIP(last))
+				stop = true
 			}
 		}
 	}
