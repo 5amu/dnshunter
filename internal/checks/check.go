@@ -1,8 +1,8 @@
-package internal
+package checks
 
 import (
+	"github.com/5amu/dnshunter/internal/checks/dnschecks"
 	"github.com/5amu/dnshunter/internal/common"
-	"github.com/5amu/dnshunter/internal/dnschecks"
 	"github.com/5amu/dnshunter/internal/output"
 	"github.com/miekg/dns"
 )

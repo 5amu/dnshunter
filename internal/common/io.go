@@ -25,7 +25,7 @@ func generic(s string, color string) string {
 }
 
 // Banner formats the provided string into banner format
-func Banner(s string) string {
+func BannerFmt(s string) string {
 	return generic(s, colors[BannerLevel])
 }
 
