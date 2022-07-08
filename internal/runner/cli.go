@@ -83,6 +83,7 @@ func ParseArgs() (*Args, error) {
 		return nil
 	})
 
+	mainFlagSet.Usage = usage
 	if err := mainFlagSet.Parse(os.Args[1:]); err != nil {
 		return nil, err
 	}
@@ -105,7 +106,6 @@ func ParseArgs() (*Args, error) {
 		return nil, err
 	}
 
-	mainFlagSet.Usage = usage
 	return &Args{
 		HelpFlag:    help1 || help2,
 		VersionFlag: vers1 || vers2,
