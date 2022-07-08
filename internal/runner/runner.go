@@ -38,7 +38,7 @@ func (a *Args) Run() error {
 
 	var wg sync.WaitGroup
 	resChan := make(chan *output.CheckOutput, 1)
-	for _, check := range checks.CheckList {
+	for _, check := range a.CheckList {
 		wg.Add(1)
 		go func(ch checks.Check) {
 			ch.Init(c)
