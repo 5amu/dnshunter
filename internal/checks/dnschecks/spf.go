@@ -23,11 +23,6 @@ func (c *SPFCheck) Init(client *dns.Client) error {
 }
 
 func (c *SPFCheck) Start(domain string, nameservers *common.Nameservers) error {
-	m := new(dns.Msg)
-	m.SetQuestion(dns.Fqdn(domain), dns.TypeTXT)
-	m.RecursionDesired = true
-	m.Truncated = false
-
 	var isVuln bool
 	var message string
 
@@ -37,21 +32,17 @@ func (c *SPFCheck) Start(domain string, nameservers *common.Nameservers) error {
 
 	var spfRecords []string
 
-	for _, ns := range nameservers.IPs {
-		c.currentNS = ns.String()
+	for _, fqdn := range nameservers.FQDNs {
+		c.currentNS = nameservers.GetIP(fqdn).String()
 
-		fqdn, err := nameservers.IPv4ToFQDN(ns.String())
+		r, err := common.MakeQuery(
+			c.client,
+			dns.Fqdn(domain),
+			net.JoinHostPort(nameservers.GetIP(fqdn).String(), "53"),
+			dns.TypeTXT,
+		)
 		if err != nil {
 			return err
-		}
-
-		r, _, err := c.client.Exchange(m, net.JoinHostPort(ns.String(), "53"))
-		if err != nil {
-			return err
-		}
-
-		if r.Rcode != dns.RcodeSuccess {
-			return fmt.Errorf("invalid answer from %v after A query for %v", fqdn, domain)
 		}
 
 		for _, spf := range r.Answer {
@@ -77,11 +68,10 @@ func (c *SPFCheck) Start(domain string, nameservers *common.Nameservers) error {
 	c.output = &output.CheckOutput{
 		Name:        "Checking SPF Record",
 		Domain:      domain,
-		Nameservers: nameservers.ToFQDNs(),
+		Nameservers: nameservers.FQDNs,
 		Vulnerable:  isVuln,
 		Message:     message,
 	}
-
 	return nil
 }
 
@@ -125,13 +115,13 @@ func (c *SPFCheck) recursiveSPFCheck(record string, domain string, message strin
 
 func (c *SPFCheck) getSPF(domain string) string {
 
-	m := new(dns.Msg)
-	m.SetQuestion(dns.Fqdn(domain), dns.TypeTXT)
-	m.RecursionDesired = true
-
-	r, _, _ := c.client.Exchange(m, net.JoinHostPort(c.currentNS, "53"))
-
-	if r.Rcode != dns.RcodeSuccess {
+	r, err := common.MakeQuery(
+		c.client,
+		dns.Fqdn(domain),
+		net.JoinHostPort(c.currentNS, "53"),
+		dns.TypeTXT,
+	)
+	if err != nil {
 		return ""
 	}
 

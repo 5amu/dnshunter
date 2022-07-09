@@ -20,11 +20,6 @@ func (c *ANYCheck) Init(client *dns.Client) error {
 }
 
 func (c *ANYCheck) Start(domain string, nameservers *common.Nameservers) error {
-
-	m := new(dns.Msg)
-	m.SetQuestion(dns.Fqdn(domain), dns.TypeANY)
-	m.RecursionDesired = true
-
 	var isVuln bool
 	var message string
 
@@ -34,20 +29,16 @@ func (c *ANYCheck) Start(domain string, nameservers *common.Nameservers) error {
 	message += "made by the host. More information on the severity here:\n"
 	message += "https://www.cisa.gov/uscert/ncas/alerts/TA13-088A\n\n"
 
-	for _, ns := range nameservers.IPs {
+	for _, fqdn := range nameservers.FQDNs {
 
-		fqdn, err := nameservers.IPv4ToFQDN(ns.String())
+		r, err := common.MakeQuery(
+			c.client,
+			dns.Fqdn(domain),
+			net.JoinHostPort(nameservers.GetIP(fqdn).String(), "53"),
+			dns.TypeANY,
+		)
 		if err != nil {
 			return err
-		}
-
-		r, _, err := c.client.Exchange(m, net.JoinHostPort(ns.String(), "53"))
-		if err != nil {
-			return err
-		}
-
-		if r.Rcode != dns.RcodeSuccess {
-			return fmt.Errorf("invalid answer from %v after A query for %v", fqdn, domain)
 		}
 
 		if len(r.Answer) > common.DNSAmplificationThreshold {
@@ -64,7 +55,7 @@ func (c *ANYCheck) Start(domain string, nameservers *common.Nameservers) error {
 	c.output = &output.CheckOutput{
 		Name:        "DNS amplification",
 		Domain:      domain,
-		Nameservers: nameservers.ToFQDNs(),
+		Nameservers: nameservers.FQDNs,
 		Vulnerable:  isVuln,
 		Message:     message,
 	}

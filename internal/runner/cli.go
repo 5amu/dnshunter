@@ -101,7 +101,7 @@ func ParseArgs() (*Args, error) {
 		return nil, fmt.Errorf("please, specify just one output file")
 	}
 
-	chechlist, err := parseChecklist(append(checklist1, checklist2...))
+	checklist, err := parseChecklist(append(checklist1, checklist2...))
 	if err != nil {
 		return nil, err
 	}
@@ -112,7 +112,7 @@ func ParseArgs() (*Args, error) {
 		Outfile:     outfile1 + outfile2,
 		NSFile:      nsfile1 + nsfile2,
 		Domain:      mainFlagSet.Arg(0),
-		CheckList:   chechlist,
+		CheckList:   checklist,
 	}, nil
 }
 

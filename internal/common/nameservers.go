@@ -10,8 +10,9 @@ import (
 )
 
 type Nameservers struct {
-	IPs   []net.IP
-	FQDNs []string
+	IPs      []net.IP
+	FQDNs    []string
+	fqdnToIP map[string]net.IP
 }
 
 func NewNameserversFromFile(fname string) (*Nameservers, error) {
@@ -23,106 +24,62 @@ func NewNameserversFromFile(fname string) (*Nameservers, error) {
 			return nil, fmt.Errorf("no nameservers in file %v", fname)
 		}
 
-		nsIps, err := nameserversToIPv4(nsStrings)
-		if err != nil {
+		n := &Nameservers{FQDNs: nsStrings}
+		if err := n.prepare(); err != nil {
 			return nil, err
 		}
-
-		return &Nameservers{
-			IPs:   nsIps,
-			FQDNs: nsStrings,
-		}, nil
+		return n, nil
 	}
 }
 
 func NewNameserversFromDomain(domain string) (*Nameservers, error) {
-	c := new(dns.Client)
-
-	m := new(dns.Msg)
-	m.SetQuestion(dns.Fqdn(domain), dns.TypeNS)
-	m.RecursionDesired = true
-
-	r, _, err := c.Exchange(m, net.JoinHostPort(DefaultNameserver, "53"))
+	r, err := MakeQuery(new(dns.Client), dns.Fqdn(domain), net.JoinHostPort(DefaultNameserver, "53"), dns.TypeNS)
 	if err != nil {
 		return nil, err
-	}
-
-	if r.Rcode != dns.RcodeSuccess {
-		return nil, fmt.Errorf("invalid answer from %v after NS query for %v", DefaultNameserver, domain)
 	}
 
 	var result []string
 	for _, r := range r.Answer {
 		switch t := r.(type) {
 		case *dns.NS:
-			// google.com.	14332	IN	NS	ns3.google.com.
-			splitted := strings.Split(t.String(), "\t")
-			last := splitted[len(splitted)-1]
-			result = append(result, last)
+			result = append(result, strings.Trim(t.Ns, "."))
 		}
 	}
 
-	ips, err := nameserversToIPv4(result)
+	n := &Nameservers{FQDNs: result}
+	if err := n.prepare(); err != nil {
+		return nil, err
+	}
+	return n, nil
+}
+
+func (n *Nameservers) GetIP(fqdn string) net.IP {
+	return n.fqdnToIP[fqdn]
+}
+
+func (n *Nameservers) prepare() (err error) {
+	client := new(dns.Client)
+	n.fqdnToIP = make(map[string]net.IP)
+	for _, fqdn := range n.FQDNs {
+		if n.fqdnToIP[fqdn], err = nsToIPv4(client, fqdn); err != nil {
+			return err
+		}
+		n.IPs = append(n.IPs, n.fqdnToIP[fqdn])
+	}
+	return nil
+}
+
+func nsToIPv4(client *dns.Client, fqdn string) (net.IP, error) {
+	r, err := MakeQuery(client, dns.Fqdn(fqdn), net.JoinHostPort(DefaultNameserver, "53"), dns.TypeA)
 	if err != nil {
 		return nil, err
 	}
 
-	return &Nameservers{
-		FQDNs: result,
-		IPs:   ips,
-	}, nil
-}
-
-func (n *Nameservers) ToIPv4() (res []string) {
-	for _, i := range n.IPs {
-		res = append(res, i.String())
-	}
-	return res
-}
-
-func (n *Nameservers) ToFQDNs() []string {
-	return n.FQDNs
-}
-
-func (n *Nameservers) IPv4ToFQDN(ip string) (string, error) {
-	for i, t := range n.IPs {
-		if t.String() == ip {
-			return n.FQDNs[i], nil
+	for _, r := range r.Answer {
+		switch t := r.(type) {
+		case *dns.A:
+			return t.A, nil
 		}
 	}
-	return "", fmt.Errorf("no fqdn for given IP %v", ip)
-}
-
-func nameserversToIPv4(fqdns []string) (result []net.IP, err error) {
-	for _, fqdn := range fqdns {
-
-		c := new(dns.Client)
-		m := new(dns.Msg)
-		m.SetQuestion(fqdn, dns.TypeA)
-
-		r, _, err := c.Exchange(m, net.JoinHostPort(DefaultNameserver, "53"))
-		if err != nil {
-			return nil, err
-		}
-
-		if r.Rcode != dns.RcodeSuccess {
-			return nil, fmt.Errorf("invalid answer from %v after A query for %v", DefaultNameserver, fqdn)
-		}
-
-		stop := false
-		for _, r := range r.Answer {
-			if stop {
-				break
-			}
-			switch t := r.(type) {
-			case *dns.A:
-				// google.com.	14332	IN	NS	ns3.google.com.
-				splitted := strings.Split(t.String(), "\t")
-				last := splitted[len(splitted)-1]
-				result = append(result, net.ParseIP(last))
-				stop = true
-			}
-		}
-	}
-	return
+	return nil, fmt.Errorf("no IPv4 address found for %v", fqdn)
 }

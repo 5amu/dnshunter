@@ -22,17 +22,14 @@ func (c *SOACheck) Init(client *dns.Client) error {
 
 func (c *SOACheck) Start(domain string, nameservers *common.Nameservers) error {
 
-	m := new(dns.Msg)
-	m.SetQuestion(dns.Fqdn(domain), dns.TypeSOA)
-	m.RecursionDesired = true
-
-	r, _, err := c.client.Exchange(m, net.JoinHostPort(common.DefaultNameserver, "53"))
+	r, err := common.MakeQuery(
+		c.client,
+		dns.Fqdn(domain),
+		net.JoinHostPort(common.DefaultNameserver, "53"),
+		dns.TypeSOA,
+	)
 	if err != nil {
 		return err
-	}
-
-	if r.Rcode != dns.RcodeSuccess {
-		return fmt.Errorf("invalid answer from %v after SOA query for %v", common.DefaultNameserver, domain)
 	}
 
 	var isVuln bool

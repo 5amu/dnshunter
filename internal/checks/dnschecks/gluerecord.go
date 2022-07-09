@@ -21,11 +21,6 @@ func (c *GLUECheck) Init(client *dns.Client) error {
 }
 
 func (c *GLUECheck) Start(domain string, nameservers *common.Nameservers) error {
-
-	m := new(dns.Msg)
-	m.SetQuestion(dns.Fqdn(domain), dns.TypeNS)
-	m.RecursionDesired = true
-
 	var isVuln bool
 	var message string
 
@@ -34,20 +29,15 @@ func (c *GLUECheck) Start(domain string, nameservers *common.Nameservers) error 
 	message += "the additional section of the answer. The severity of this misconfiguration \n"
 	message += "is arguably medium\n\n"
 
-	for _, ns := range nameservers.IPs {
-
-		fqdn, err := nameservers.IPv4ToFQDN(ns.String())
+	for _, fqdn := range nameservers.FQDNs {
+		r, err := common.MakeQuery(
+			c.client,
+			dns.Fqdn(domain),
+			net.JoinHostPort(nameservers.GetIP(fqdn).String(), "53"),
+			dns.TypeNS,
+		)
 		if err != nil {
 			return err
-		}
-
-		r, _, err := c.client.Exchange(m, net.JoinHostPort(ns.String(), "53"))
-		if err != nil {
-			return err
-		}
-
-		if r.Rcode != dns.RcodeSuccess {
-			return fmt.Errorf("invalid answer from %v after A query for %v", fqdn, domain)
 		}
 
 		// Check every record in the additional section, every nameserver should have its
@@ -56,7 +46,7 @@ func (c *GLUECheck) Start(domain string, nameservers *common.Nameservers) error 
 		for _, a := range r.Extra {
 			switch t := a.(type) {
 			case *dns.A, *dns.AAAA:
-				if strings.Contains(t.String(), ns.String()) {
+				if strings.Contains(t.String(), string(nameservers.GetIP(fqdn))) {
 					isVuln = false
 				}
 			}
@@ -72,7 +62,7 @@ func (c *GLUECheck) Start(domain string, nameservers *common.Nameservers) error 
 	c.output = &output.CheckOutput{
 		Name:        "GLUE Record",
 		Domain:      domain,
-		Nameservers: nameservers.ToFQDNs(),
+		Nameservers: nameservers.FQDNs,
 		Vulnerable:  isVuln,
 		Message:     message,
 	}

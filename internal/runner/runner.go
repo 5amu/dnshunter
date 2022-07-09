@@ -27,8 +27,8 @@ func (a *Args) Run() error {
 	}
 
 	initialInfo := common.Info(fmt.Sprintf("scanning domain   : %v\n", a.Domain))
-	initialInfo += common.Info(fmt.Sprintf("using nameservers : %v\n", nameservers.ToFQDNs()))
-	initialInfo += common.Info(fmt.Sprintf("with IPv4 version : %v\n", nameservers.ToIPv4()))
+	initialInfo += common.Info(fmt.Sprintf("using nameservers : %v\n", nameservers.FQDNs))
+	initialInfo += common.Info(fmt.Sprintf("with IPv4 version : %v\n", nameservers.IPs))
 	if a.Outfile != "" {
 		initialInfo += common.Info(fmt.Sprintf("saving output to  : %v\n", a.Outfile))
 	} else {

@@ -31,21 +31,16 @@ func (c *AXFRCheck) Start(domain string, nameservers *common.Nameservers) error 
 	message += "(at best). In the worse case scenario, the attacker might be able to\n"
 	message += "get ownership on the zone handled by the dns.\n\n"
 
-	for _, ns := range nameservers.IPs {
+	for _, fqdn := range nameservers.FQDNs {
 		vulnerable := false
-		fqdn, err := nameservers.IPv4ToFQDN(ns.String())
-		if err != nil {
-			message += fmt.Sprintf("nameserver %v don't accept unauthenticated zone transfers\n", fqdn)
-			continue
-		}
 
-		conn, err := net.Dial("tcp", net.JoinHostPort(ns.String(), "53"))
+		conn, err := net.Dial("tcp", net.JoinHostPort(string(nameservers.GetIP(fqdn)), "53"))
 		if err != nil {
 			message += fmt.Sprintf("nameserver %v don't accept unauthenticated zone transfers\n", fqdn)
 			continue
 		}
 		transfer := &dns.Transfer{Conn: &dns.Conn{Conn: conn}}
-		channel, err := transfer.In(m, ns.String())
+		channel, err := transfer.In(m, string(nameservers.GetIP(fqdn)))
 		if err != nil {
 			message += fmt.Sprintf("nameserver %v don't accept unauthenticated zone transfers\n", fqdn)
 			continue
@@ -82,7 +77,7 @@ func (c *AXFRCheck) Start(domain string, nameservers *common.Nameservers) error 
 	c.output = &output.CheckOutput{
 		Name:        "Unprotected Zone Transfer",
 		Domain:      domain,
-		Nameservers: nameservers.ToFQDNs(),
+		Nameservers: nameservers.FQDNs,
 		Vulnerable:  isVuln,
 		Message:     message,
 	}

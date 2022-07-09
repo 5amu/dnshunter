@@ -20,11 +20,6 @@ func (c *DNSSECCheck) Init(client *dns.Client) error {
 }
 
 func (c *DNSSECCheck) Start(domain string, nameservers *common.Nameservers) error {
-
-	m := new(dns.Msg)
-	m.SetQuestion(dns.Fqdn(domain), dns.TypeDNSKEY)
-	m.RecursionDesired = true
-
 	var isVuln bool
 	var message string
 
@@ -33,20 +28,15 @@ func (c *DNSSECCheck) Start(domain string, nameservers *common.Nameservers) erro
 	message += "integrity and denial of exitence. Its mean is to avoid zone\n"
 	message += "enumeration and prevent from manipulated answers and cache poisoning\n\n"
 
-	for _, ns := range nameservers.IPs {
-
-		fqdn, err := nameservers.IPv4ToFQDN(ns.String())
+	for _, fqdn := range nameservers.FQDNs {
+		r, err := common.MakeQuery(
+			c.client,
+			dns.Fqdn(domain),
+			net.JoinHostPort(nameservers.GetIP(fqdn).String(), "53"),
+			dns.TypeDNSKEY,
+		)
 		if err != nil {
 			return err
-		}
-
-		r, _, err := c.client.Exchange(m, net.JoinHostPort(ns.String(), "53"))
-		if err != nil {
-			return err
-		}
-
-		if r.Rcode != dns.RcodeSuccess {
-			return fmt.Errorf("invalid answer from %v after KEY query for %v", fqdn, domain)
 		}
 
 		if len(r.Answer) == 0 {
@@ -64,11 +54,10 @@ func (c *DNSSECCheck) Start(domain string, nameservers *common.Nameservers) erro
 	c.output = &output.CheckOutput{
 		Name:        "DNS amplification",
 		Domain:      domain,
-		Nameservers: nameservers.ToFQDNs(),
+		Nameservers: nameservers.FQDNs,
 		Vulnerable:  isVuln,
 		Message:     message,
 	}
-
 	return nil
 }
 

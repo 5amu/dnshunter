@@ -28,7 +28,7 @@ func (c *DKIMCheck) Start(domain string, nameservers *common.Nameservers) error 
 	message += "from the advertised organization.\n\n"
 
 	splittedDomain := strings.Split(domain, ".")
-	sld := splittedDomain[len(splittedDomain)-1]
+	sld := splittedDomain[len(splittedDomain)-2]
 	selectors := []string{
 		sld,
 		"default",
@@ -48,41 +48,35 @@ func (c *DKIMCheck) Start(domain string, nameservers *common.Nameservers) error 
 		"selector5",
 	}
 
-	for _, ns := range nameservers.IPs {
+	for _, fqdn := range nameservers.FQDNs {
 		found := true
 
-		completeNS := net.JoinHostPort(ns.String(), "53")
 		for _, selector := range selectors {
-			r, err := common.MakeQuery(
+			r, _ := common.MakeQuery(
 				c.client,
-				fmt.Sprintf("%v_domainkey.%v", selector, domain),
-				completeNS,
+				fmt.Sprintf("%v._domainkey.%v.", selector, domain),
+				net.JoinHostPort(nameservers.GetIP(fqdn).String(), "53"),
 				dns.TypeTXT,
 			)
-			if err != nil {
-				return err
-			}
 
-			if len(r.Answer) > 0 {
+			if r != nil && r.Rcode == dns.RcodeSuccess {
 				found = false
-				message += fmt.Sprintf("record DKIM (selector=%v) found on nameserver %v\n", selector, ns)
+				message += fmt.Sprintf("record DKIM (selector=%v) found on nameserver %v\n", selector, fqdn)
 			}
 		}
 		if found {
-			message += common.Warn(fmt.Sprintf("no DKIM record found on nameserver %v\n", ns))
+			message += common.Warn(fmt.Sprintf("no DKIM record found on nameserver %v\n", fqdn))
 		}
-
 		isVuln = isVuln || found
 	}
 
 	c.output = &output.CheckOutput{
 		Name:        "DKIM Record",
 		Domain:      domain,
-		Nameservers: nameservers.ToFQDNs(),
+		Nameservers: nameservers.FQDNs,
 		Vulnerable:  isVuln,
 		Message:     message,
 	}
-
 	return nil
 }
 

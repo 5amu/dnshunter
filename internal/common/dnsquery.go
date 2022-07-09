@@ -1,6 +1,10 @@
 package common
 
-import "github.com/miekg/dns"
+import (
+	"fmt"
+
+	"github.com/miekg/dns"
+)
 
 func MakeQuery(c *dns.Client, query, nameserver string, qType uint16) (*dns.Msg, error) {
 	m := new(dns.Msg)
@@ -12,7 +16,7 @@ func MakeQuery(c *dns.Client, query, nameserver string, qType uint16) (*dns.Msg,
 		return nil, err
 	}
 	if r.Rcode != dns.RcodeSuccess {
-		return nil, err
+		return nil, fmt.Errorf("invalid answer from %v after query for %v", nameserver, query)
 	}
 	return r, nil
 }
