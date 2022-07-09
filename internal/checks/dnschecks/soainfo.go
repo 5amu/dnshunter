@@ -78,7 +78,10 @@ func parseSOA(soa *dns.SOA) (isVuln bool, message string) {
 }
 
 func parseSerial(serial string, isVuln *bool) string {
-	serialDate, _ := time.Parse("%Y%m%d", string(serial)[:4])
+	if len(serial) < 8 {
+		return common.Warn(fmt.Sprintf("Serial number: %v - should follow standards (RIPE-203)\n", serial))
+	}
+	serialDate, _ := time.Parse("%Y%m%d", string(serial)[:7])
 	dummyLower, _ := time.Parse("%s", "0")
 	dummyUpper, _ := time.Parse("%s", fmt.Sprintf("%v", time.Now().Unix()))
 	if serialDate.After(dummyUpper) || serialDate.Before(dummyLower) {
