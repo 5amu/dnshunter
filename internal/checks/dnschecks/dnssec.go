@@ -52,7 +52,7 @@ func (c *DNSSECCheck) Start(domain string, nameservers *common.Nameservers) erro
 	}
 
 	c.output = &output.CheckOutput{
-		Name:        "DNS amplification",
+		Name:        "DNSSEC implementation",
 		Domain:      domain,
 		Nameservers: nameservers.FQDNs,
 		Vulnerable:  isVuln,

@@ -89,7 +89,7 @@ func (c *SPFCheck) recursiveSPFCheck(record string, domain string, message strin
 	if record == "" {
 		message += common.SpfNotOK(fmt.Sprintf("%vNo SPF for %v\n", spacing, domain))
 	} else if strings.Contains(record, "-all") {
-		message += common.SpfOK(fmt.Sprintf("%vSecure (-all) SPF for %v\n", spacing, domain))
+		message += common.OK(fmt.Sprintf("%vSecure (-all) SPF for %v\n", spacing, domain))
 		stop = true
 	} else if strings.Contains(record, "~all") {
 		*isVuln = true

@@ -13,6 +13,7 @@ import (
 type Args struct {
 	HelpFlag    bool
 	VersionFlag bool
+	Silent      bool
 	Outfile     string
 	NSFile      string
 	Domain      string
@@ -28,6 +29,7 @@ func usage() {
 	fmt.Println("    -o|--outfile    save output in JSON format")
 	fmt.Println("    -n|--nsfile     file with nameservers (line separated)")
 	fmt.Println("    -c|--checklist  specify a single check (flag can be repeated)")
+	fmt.Println("    -s|--silent     Print less information")
 	fmt.Println("")
 	fmt.Println("POSITIONAL:")
 	fmt.Println("")
@@ -64,6 +66,10 @@ func ParseArgs() (*Args, error) {
 	var vers1, vers2 bool
 	mainFlagSet.BoolVar(&vers1, "v", false, "")
 	mainFlagSet.BoolVar(&vers2, "version", false, "")
+
+	var silent1, silent2 bool
+	mainFlagSet.BoolVar(&silent1, "s", false, "")
+	mainFlagSet.BoolVar(&silent2, "silent", false, "")
 
 	var outfile1, outfile2 string
 	mainFlagSet.StringVar(&outfile1, "o", "", "")
@@ -109,6 +115,7 @@ func ParseArgs() (*Args, error) {
 	return &Args{
 		HelpFlag:    help1 || help2,
 		VersionFlag: vers1 || vers2,
+		Silent:      silent1 || silent2,
 		Outfile:     outfile1 + outfile2,
 		NSFile:      nsfile1 + nsfile2,
 		Domain:      mainFlagSet.Arg(0),

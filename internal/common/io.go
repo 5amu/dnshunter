@@ -52,8 +52,8 @@ func Error(s string) string {
 	return generic(fmt.Sprintf("[ERROR]: %v", s), colors[ErrorLevel])
 }
 
-func SpfOK(s string) string {
-	return fmt.Sprintf("[OKAY]: %v", s)
+func OK(s string) string {
+	return generic(fmt.Sprintf("[OKAY]: %v", s), colors[HeaderLevel])
 }
 
 func SpfNotOK(s string) string {

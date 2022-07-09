@@ -71,8 +71,20 @@ func (a *Args) Run() error {
 			}
 			return nil
 		case r := <-resChan:
-			fmt.Println(r)
+			if a.Silent {
+				synteticPrint(r)
+			} else {
+				fmt.Println(r)
+			}
 			results = append(results, r)
 		}
+	}
+}
+
+func synteticPrint(r *output.CheckOutput) {
+	if r.Vulnerable {
+		fmt.Println(common.Warn(fmt.Sprintf("%v is positive to check: %v", r.Domain, r.Name)))
+	} else {
+		fmt.Println(common.OK(fmt.Sprintf("%v is negative to check: %v", r.Domain, r.Name)))
 	}
 }
