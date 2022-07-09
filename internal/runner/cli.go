@@ -20,14 +20,14 @@ type Args struct {
 }
 
 func usage() {
-	fmt.Println("Usage: dnshunter -h|-v [-o <outfile>] [-n <ns-file>] <domain>")
+	fmt.Println("Usage: dnshunter -h|-v [-o|-n|-c <ARG>] <domain>")
 	fmt.Println("")
 	fmt.Println("OPTIONS:")
 	fmt.Println("    -h|-help        show the program usage and exit")
 	fmt.Println("    -v|-version     show the program version and exit")
 	fmt.Println("    -o|--outfile    save output in JSON format")
 	fmt.Println("    -n|--nsfile     file with nameservers (line separated)")
-	fmt.Println("    -c|--checklist  comma separated list of checks to perform (default:all)")
+	fmt.Println("    -c|--checklist  specify a single check (flag can be repeated)")
 	fmt.Println("")
 	fmt.Println("POSITIONAL:")
 	fmt.Println("")
