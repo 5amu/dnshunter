@@ -66,7 +66,7 @@ func (c *SPFCheck) Start(domain string, nameservers *common.Nameservers) error {
 	}
 
 	c.output = &output.CheckOutput{
-		Name:        "Checking SPF Record",
+		Name:        "SPF Record",
 		Domain:      domain,
 		Nameservers: nameservers.FQDNs,
 		Vulnerable:  isVuln,
