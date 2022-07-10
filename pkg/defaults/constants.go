@@ -7,4 +7,6 @@ const (
 	// DNSAmplificationThreshold is an arbitrary number that the programmer
 	// considered to be enough for "response considerably larger than request"
 	DNSAmplificationThreshold = 5
+	// DefaultWhoisServer - default whois server
+	DefaultWhoisServer = "whois.cymru.com"
 )

@@ -1,6 +1,7 @@
 package checks
 
 import (
+	"github.com/5amu/dnshunter/pkg/checks/bgpchecks"
 	"github.com/5amu/dnshunter/pkg/checks/dnschecks"
 	"github.com/5amu/dnshunter/pkg/output"
 	"github.com/5amu/dnshunter/pkg/utils"
@@ -46,7 +47,7 @@ func NewCheck(id string) Check {
 	case DKIM:
 		return new(dnschecks.DKIMCheck)
 	case GEO:
-		return nil
+		return new(bgpchecks.GEOCkeck)
 	case IRR:
 		return nil
 	case ROA:
@@ -66,5 +67,6 @@ func AllChecks() []Check {
 		new(dnschecks.SPFCheck),
 		new(dnschecks.DKIMCheck),
 		new(dnschecks.DMARCCheck),
+		new(bgpchecks.GEOCkeck),
 	}
 }
