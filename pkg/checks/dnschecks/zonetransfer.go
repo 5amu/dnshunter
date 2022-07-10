@@ -3,6 +3,7 @@ package dnschecks
 import (
 	"fmt"
 	"net"
+	"time"
 
 	"github.com/5amu/dnshunter/pkg/output"
 	"github.com/5amu/dnshunter/pkg/utils"
@@ -43,7 +44,7 @@ func (c *AXFRCheck) Start(domain string, nameservers *utils.Nameservers) error {
 		res.Zone = domain
 		res.Vulnerable = false
 
-		conn, err := net.Dial("tcp", net.JoinHostPort(nameservers.GetIP(fqdn).String(), "53"))
+		conn, err := net.DialTimeout("tcp", net.JoinHostPort(nameservers.GetIP(fqdn).String(), "53"), 2*time.Second)
 		if err != nil {
 			continue
 		}
