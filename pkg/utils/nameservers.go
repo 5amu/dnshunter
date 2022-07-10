@@ -1,4 +1,4 @@
-package common
+package utils
 
 import (
 	"fmt"
@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/5amu/dnshunter/pkg/defaults"
 	"github.com/miekg/dns"
 )
 
@@ -33,7 +34,7 @@ func NewNameserversFromFile(fname string) (*Nameservers, error) {
 }
 
 func NewNameserversFromDomain(domain string) (*Nameservers, error) {
-	r, err := MakeQuery(new(dns.Client), dns.Fqdn(domain), net.JoinHostPort(DefaultNameserver, "53"), dns.TypeNS)
+	r, err := MakeQuery(new(dns.Client), dns.Fqdn(domain), net.JoinHostPort(defaults.DefaultNameserver, "53"), dns.TypeNS)
 	if err != nil {
 		return nil, err
 	}
@@ -70,7 +71,7 @@ func (n *Nameservers) prepare() (err error) {
 }
 
 func nsToIPv4(client *dns.Client, fqdn string) (net.IP, error) {
-	r, err := MakeQuery(client, dns.Fqdn(fqdn), net.JoinHostPort(DefaultNameserver, "53"), dns.TypeA)
+	r, err := MakeQuery(client, dns.Fqdn(fqdn), net.JoinHostPort(defaults.DefaultNameserver, "53"), dns.TypeA)
 	if err != nil {
 		return nil, err
 	}

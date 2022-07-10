@@ -5,28 +5,27 @@ import (
 	"net"
 	"strings"
 
-	"github.com/5amu/dnshunter/internal/common"
-	"github.com/5amu/dnshunter/internal/output"
+	"github.com/5amu/dnshunter/pkg/output"
+	"github.com/5amu/dnshunter/pkg/utils"
 	"github.com/miekg/dns"
 )
 
 type DKIMCheck struct {
-	client *dns.Client
-	output *output.CheckOutput
+	description []string
+	client      *dns.Client
+	output      *output.CheckOutput
 }
 
 func (c *DKIMCheck) Init(client *dns.Client) error {
 	c.client = client
+	c.description = []string{
+		"DKIM is a TXT record that guarantees that a particular email comes",
+		"from the advertised organization.",
+	}
 	return nil
 }
 
-func (c *DKIMCheck) Start(domain string, nameservers *common.Nameservers) error {
-	var isVuln bool
-	var message string
-
-	message += "\nDKIM is a TXT record that guarantees that a particular email comes\n"
-	message += "from the advertised organization.\n\n"
-
+func (c *DKIMCheck) Start(domain string, nameservers *utils.Nameservers) error {
 	splittedDomain := strings.Split(domain, ".")
 	sld := splittedDomain[len(splittedDomain)-2]
 	selectors := []string{
@@ -48,11 +47,15 @@ func (c *DKIMCheck) Start(domain string, nameservers *common.Nameservers) error 
 		"selector5",
 	}
 
+	var resArray []output.SingleCheckResult
 	for _, fqdn := range nameservers.FQDNs {
-		found := true
+		var res output.SingleCheckResult
+		res.Nameserver = fqdn
+		res.Zone = domain
+		res.Vulnerable = true
 
 		for _, selector := range selectors {
-			r, _ := common.MakeQuery(
+			r, _ := utils.MakeQuery(
 				c.client,
 				fmt.Sprintf("%v._domainkey.%v.", selector, domain),
 				net.JoinHostPort(nameservers.GetIP(fqdn).String(), "53"),
@@ -60,22 +63,24 @@ func (c *DKIMCheck) Start(domain string, nameservers *common.Nameservers) error 
 			)
 
 			if r != nil && r.Rcode == dns.RcodeSuccess {
-				found = false
-				message += fmt.Sprintf("record DKIM (selector=%v) found on nameserver %v\n", selector, fqdn)
+				res.Vulnerable = false
+				msg := fmt.Sprintf("selector = %v", selector)
+				res.Information = append(res.Information, msg)
 			}
 		}
-		if found {
-			message += common.Warn(fmt.Sprintf("no DKIM record found on nameserver %v\n", fqdn))
+		if res.Vulnerable {
+			msg := "no DKIM record found on nameserver"
+			res.Information = append(res.Information, msg)
 		}
-		isVuln = isVuln || found
+		resArray = append(resArray, res)
 	}
 
 	c.output = &output.CheckOutput{
 		Name:        "DKIM Record",
 		Domain:      domain,
 		Nameservers: nameservers.FQDNs,
-		Vulnerable:  isVuln,
-		Message:     message,
+		Description: c.description,
+		Results:     resArray,
 	}
 	return nil
 }

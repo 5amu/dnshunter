@@ -1,15 +1,15 @@
 package checks
 
 import (
-	"github.com/5amu/dnshunter/internal/checks/dnschecks"
-	"github.com/5amu/dnshunter/internal/common"
-	"github.com/5amu/dnshunter/internal/output"
+	"github.com/5amu/dnshunter/pkg/checks/dnschecks"
+	"github.com/5amu/dnshunter/pkg/output"
+	"github.com/5amu/dnshunter/pkg/utils"
 	"github.com/miekg/dns"
 )
 
 type Check interface {
 	Init(client *dns.Client) error
-	Start(domain string, ns *common.Nameservers) error
+	Start(domain string, ns *utils.Nameservers) error
 	Results() *output.CheckOutput
 }
 

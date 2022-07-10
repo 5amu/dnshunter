@@ -1,11 +1,9 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"os"
 
-	"github.com/5amu/dnshunter/internal/common"
 	"github.com/5amu/dnshunter/internal/runner"
 )
 
@@ -19,7 +17,6 @@ func main() {
 		os.Exit(0)
 	}
 
-	fmt.Println(common.BannerFmt(common.Banner))
 	if err := cfg.Run(); err != nil {
 		log.Fatal(err)
 	}
