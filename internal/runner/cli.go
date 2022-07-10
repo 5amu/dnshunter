@@ -10,7 +10,7 @@ import (
 )
 
 // DNSHunterVersion tracks the version of the program
-const DNSHunterVersion = "v0.1-beta"
+const DNSHunterVersion = "v1.0"
 
 type Args struct {
 	HelpFlag    bool
