@@ -6,9 +6,11 @@ import (
 	"os"
 	"strings"
 
-	"github.com/5amu/dnshunter/internal/checks"
-	"github.com/5amu/dnshunter/internal/common"
+	"github.com/5amu/dnshunter/pkg/checks"
 )
+
+// DNSHunterVersion tracks the version of the program
+const DNSHunterVersion = "v0.1-beta"
 
 type Args struct {
 	HelpFlag    bool
@@ -25,11 +27,11 @@ func usage() {
 	fmt.Println("")
 	fmt.Println("OPTIONS:")
 	fmt.Println("    -h|-help        show the program usage and exit")
-	fmt.Println("    -v|-version     show the program version and exit")
+	fmt.Println("    -V|-version     show the program version and exit")
 	fmt.Println("    -o|--outfile    save output in JSON format")
 	fmt.Println("    -n|--nsfile     file with nameservers (line separated)")
 	fmt.Println("    -c|--checklist  specify a single check (flag can be repeated)")
-	fmt.Println("    -s|--silent     Print less information")
+	fmt.Println("    -v|--verbose    Print more information")
 	fmt.Println("")
 	fmt.Println("POSITIONAL:")
 	fmt.Println("")
@@ -64,12 +66,12 @@ func ParseArgs() (*Args, error) {
 	mainFlagSet.BoolVar(&help2, "help", false, "")
 
 	var vers1, vers2 bool
-	mainFlagSet.BoolVar(&vers1, "v", false, "")
+	mainFlagSet.BoolVar(&vers1, "V", false, "")
 	mainFlagSet.BoolVar(&vers2, "version", false, "")
 
-	var silent1, silent2 bool
-	mainFlagSet.BoolVar(&silent1, "s", false, "")
-	mainFlagSet.BoolVar(&silent2, "silent", false, "")
+	var verbose1, verbose2 bool
+	mainFlagSet.BoolVar(&verbose1, "v", false, "")
+	mainFlagSet.BoolVar(&verbose2, "verbose", false, "")
 
 	var outfile1, outfile2 string
 	mainFlagSet.StringVar(&outfile1, "o", "", "")
@@ -115,7 +117,7 @@ func ParseArgs() (*Args, error) {
 	return &Args{
 		HelpFlag:    help1 || help2,
 		VersionFlag: vers1 || vers2,
-		Silent:      silent1 || silent2,
+		Silent:      !(verbose1 || verbose2),
 		Outfile:     outfile1 + outfile2,
 		NSFile:      nsfile1 + nsfile2,
 		Domain:      mainFlagSet.Arg(0),
@@ -129,7 +131,7 @@ func (a *Args) IsHelpVersion() bool {
 		return true
 	}
 	if a.VersionFlag {
-		fmt.Println("version", common.DNSHunterVersion)
+		fmt.Println("version", DNSHunterVersion)
 		return true
 	}
 	return false

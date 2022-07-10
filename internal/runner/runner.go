@@ -6,35 +6,35 @@ import (
 	"os"
 	"sync"
 
-	"github.com/5amu/dnshunter/internal/checks"
-	"github.com/5amu/dnshunter/internal/common"
-	"github.com/5amu/dnshunter/internal/output"
+	"github.com/5amu/dnshunter/pkg/checks"
+	"github.com/5amu/dnshunter/pkg/output"
+	"github.com/5amu/dnshunter/pkg/utils"
 	"github.com/miekg/dns"
+	"github.com/projectdiscovery/gologger"
+	"github.com/projectdiscovery/gologger/levels"
 )
 
 func (a *Args) Run() error {
+	gologger.Print().Msgf("\033[0;35m%v\033[0m\n", Banner)
 	c := new(dns.Client)
 
+	gologger.DefaultLogger.SetMaxLevel(levels.LevelVerbose)
+
 	var err error
-	var nameservers *common.Nameservers
+	var nameservers *utils.Nameservers
 	if a.NSFile != "" {
-		nameservers, err = common.NewNameserversFromFile(a.NSFile)
+		nameservers, err = utils.NewNameserversFromFile(a.NSFile)
 	} else {
-		nameservers, err = common.NewNameserversFromDomain(a.Domain)
+		nameservers, err = utils.NewNameserversFromDomain(a.Domain)
 	}
 	if err != nil {
 		return err
 	}
 
-	initialInfo := common.Info(fmt.Sprintf("scanning domain   : %v\n", a.Domain))
-	initialInfo += common.Info(fmt.Sprintf("using nameservers : %v\n", nameservers.FQDNs))
-	initialInfo += common.Info(fmt.Sprintf("with IPv4 version : %v\n", nameservers.IPs))
-	if a.Outfile != "" {
-		initialInfo += common.Info(fmt.Sprintf("saving output to  : %v\n", a.Outfile))
-	} else {
-		initialInfo += common.Info("saving output to  : /dev/null\n")
-	}
-	fmt.Println(initialInfo)
+	gologger.Info().Label("INFO").Msgf("scanning domain   : %v\n", a.Domain)
+	gologger.Info().Label("INFO").Msgf("using nameservers : %v\n", nameservers.FQDNs)
+	gologger.Info().Label("INFO").Msgf("with IPv4 version : %v\n", nameservers.IPs)
+	gologger.Info().Label("INFO").Msgf("saving output to  : %v\n\n", a.Outfile)
 
 	var wg sync.WaitGroup
 	resChan := make(chan *output.CheckOutput, 1)
@@ -43,7 +43,7 @@ func (a *Args) Run() error {
 		go func(ch checks.Check) {
 			ch.Init(c)
 			if err := ch.Start(a.Domain, nameservers); err != nil {
-				fmt.Println(common.Error(fmt.Sprintf("check failed with error: %v", err)))
+				gologger.Error().Label("ERR").Msgf("check failed with error: %v", err)
 			}
 			resChan <- ch.Results()
 			wg.Done()
@@ -60,6 +60,7 @@ func (a *Args) Run() error {
 	for {
 		select {
 		case <-done:
+			fmt.Println("")
 			if a.Outfile != "" {
 				if data, err := json.Marshal(results); err != nil {
 					return err
@@ -72,19 +73,11 @@ func (a *Args) Run() error {
 			return nil
 		case r := <-resChan:
 			if a.Silent {
-				synteticPrint(r)
+				r.PrintSilent()
 			} else {
-				fmt.Println(r)
+				r.PrintVerbose()
 			}
 			results = append(results, r)
 		}
-	}
-}
-
-func synteticPrint(r *output.CheckOutput) {
-	if r.Vulnerable {
-		fmt.Println(common.Warn(fmt.Sprintf("%v is positive to check: %v", r.Domain, r.Name)))
-	} else {
-		fmt.Println(common.OK(fmt.Sprintf("%v is negative to check: %v", r.Domain, r.Name)))
 	}
 }
