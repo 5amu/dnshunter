@@ -27,7 +27,13 @@ func (c *GLUECheck) Init(client *dns.Client) error {
 }
 
 func (c *GLUECheck) Start(domain string, nameservers *utils.Nameservers) error {
-	var resArray []output.SingleCheckResult
+	c.output = &output.CheckOutput{
+		Name:        "GLUE Record",
+		Domain:      domain,
+		Nameservers: nameservers.FQDNs,
+		Description: c.description,
+	}
+
 	for _, fqdn := range nameservers.FQDNs {
 		var res output.SingleCheckResult
 		res.Nameserver = fqdn
@@ -54,15 +60,7 @@ func (c *GLUECheck) Start(domain string, nameservers *utils.Nameservers) error {
 				}
 			}
 		}
-		resArray = append(resArray, res)
-	}
-
-	c.output = &output.CheckOutput{
-		Name:        "GLUE Record",
-		Domain:      domain,
-		Nameservers: nameservers.FQDNs,
-		Description: c.description,
-		Results:     resArray,
+		c.output.Results = append(c.output.Results, res)
 	}
 	return nil
 }

@@ -27,10 +27,16 @@ func (c *AXFRCheck) Init(client *dns.Client) error {
 }
 
 func (c *AXFRCheck) Start(domain string, nameservers *utils.Nameservers) error {
+	c.output = &output.CheckOutput{
+		Name:        "Unprotected Zone Transfer",
+		Domain:      domain,
+		Nameservers: nameservers.FQDNs,
+		Description: c.description,
+	}
+
 	m := new(dns.Msg)
 	m.SetQuestion(dns.Fqdn(domain), dns.TypeAXFR)
 
-	var resArray []output.SingleCheckResult
 	for _, fqdn := range nameservers.FQDNs {
 		var res output.SingleCheckResult
 		res.Nameserver = fqdn
@@ -70,17 +76,8 @@ func (c *AXFRCheck) Start(domain string, nameservers *utils.Nameservers) error {
 				}
 			}
 		}
-		resArray = append(resArray, res)
+		c.output.Results = append(c.output.Results, res)
 	}
-
-	c.output = &output.CheckOutput{
-		Name:        "Unprotected Zone Transfer",
-		Domain:      domain,
-		Nameservers: nameservers.FQDNs,
-		Description: c.description,
-		Results:     resArray,
-	}
-
 	return nil
 }
 

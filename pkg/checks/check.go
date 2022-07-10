@@ -42,7 +42,7 @@ func NewCheck(id string) Check {
 	case SPF:
 		return new(dnschecks.SPFCheck)
 	case DMARC:
-		return nil
+		return new(dnschecks.DMARCCheck)
 	case DKIM:
 		return new(dnschecks.DKIMCheck)
 	case GEO:
@@ -65,5 +65,6 @@ func AllChecks() []Check {
 		new(dnschecks.DNSSECCheck),
 		new(dnschecks.SPFCheck),
 		new(dnschecks.DKIMCheck),
+		new(dnschecks.DMARCCheck),
 	}
 }

@@ -46,8 +46,13 @@ func (c *DKIMCheck) Start(domain string, nameservers *utils.Nameservers) error {
 		"selector4",
 		"selector5",
 	}
+	c.output = &output.CheckOutput{
+		Name:        "DKIM Record",
+		Domain:      domain,
+		Nameservers: nameservers.FQDNs,
+		Description: c.description,
+	}
 
-	var resArray []output.SingleCheckResult
 	for _, fqdn := range nameservers.FQDNs {
 		var res output.SingleCheckResult
 		res.Nameserver = fqdn
@@ -72,15 +77,7 @@ func (c *DKIMCheck) Start(domain string, nameservers *utils.Nameservers) error {
 			msg := "no DKIM record found on nameserver"
 			res.Information = append(res.Information, msg)
 		}
-		resArray = append(resArray, res)
-	}
-
-	c.output = &output.CheckOutput{
-		Name:        "DKIM Record",
-		Domain:      domain,
-		Nameservers: nameservers.FQDNs,
-		Description: c.description,
-		Results:     resArray,
+		c.output.Results = append(c.output.Results, res)
 	}
 	return nil
 }

@@ -30,8 +30,13 @@ func (c *SPFCheck) Init(client *dns.Client) error {
 
 func (c *SPFCheck) Start(domain string, nameservers *utils.Nameservers) error {
 	var spfRecords []string
+	c.output = &output.CheckOutput{
+		Name:        "SPF Record",
+		Domain:      domain,
+		Nameservers: nameservers.FQDNs,
+		Description: c.description,
+	}
 
-	var resArray []output.SingleCheckResult
 	for _, fqdn := range nameservers.FQDNs {
 		var res output.SingleCheckResult
 		res.Nameserver = fqdn
@@ -52,15 +57,7 @@ func (c *SPFCheck) Start(domain string, nameservers *utils.Nameservers) error {
 				res.Information = c.recursiveSPFCheck(spf, domain, []string{}, "", 0, &res.Vulnerable)
 			}
 		}
-		resArray = append(resArray, res)
-	}
-
-	c.output = &output.CheckOutput{
-		Name:        "SPF Record",
-		Domain:      domain,
-		Nameservers: nameservers.FQDNs,
-		Description: c.description,
-		Results:     resArray,
+		c.output.Results = append(c.output.Results, res)
 	}
 	return nil
 }

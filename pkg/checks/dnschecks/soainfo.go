@@ -30,6 +30,12 @@ func (c *SOACheck) Start(domain string, nameservers *utils.Nameservers) error {
 	var res output.SingleCheckResult
 	res.Nameserver = defaults.DefaultNameserver
 	res.Zone = domain
+	c.output = &output.CheckOutput{
+		Name:        "SOA Record",
+		Domain:      domain,
+		Nameservers: []string{defaults.DefaultNameserver},
+		Description: c.description,
+	}
 
 	r, err := utils.MakeQuery(
 		c.client,
@@ -53,14 +59,7 @@ func (c *SOACheck) Start(domain string, nameservers *utils.Nameservers) error {
 			res.Information = append(res.Information, fmt.Sprintf("TTL: %v", t.Hdr.Ttl))
 		}
 	}
-
-	c.output = &output.CheckOutput{
-		Name:        "SOA Record",
-		Domain:      domain,
-		Nameservers: []string{defaults.DefaultNameserver},
-		Description: c.description,
-		Results:     []output.SingleCheckResult{res},
-	}
+	c.output.Results = append(c.output.Results, res)
 	return nil
 }
 

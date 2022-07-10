@@ -31,7 +31,13 @@ func (c *ANYCheck) Init(client *dns.Client) error {
 }
 
 func (c *ANYCheck) Start(domain string, nameservers *utils.Nameservers) error {
-	var resArray []output.SingleCheckResult
+	c.output = &output.CheckOutput{
+		Name:        "DNS Amplification",
+		Domain:      domain,
+		Nameservers: nameservers.FQDNs,
+		Description: c.description,
+	}
+
 	for _, fqdn := range nameservers.FQDNs {
 		var res output.SingleCheckResult
 		res.Nameserver = fqdn
@@ -54,15 +60,7 @@ func (c *ANYCheck) Start(domain string, nameservers *utils.Nameservers) error {
 		poc := fmt.Sprintf(c.poc, domain, fqdn)
 		res.Information = append(res.Information, poc)
 
-		resArray = append(resArray, res)
-	}
-
-	c.output = &output.CheckOutput{
-		Name:        "DNS Amplification",
-		Domain:      domain,
-		Nameservers: nameservers.FQDNs,
-		Description: c.description,
-		Results:     resArray,
+		c.output.Results = append(c.output.Results, res)
 	}
 	return nil
 }

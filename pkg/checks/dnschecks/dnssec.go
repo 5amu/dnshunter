@@ -29,7 +29,13 @@ func (c *DNSSECCheck) Init(client *dns.Client) error {
 }
 
 func (c *DNSSECCheck) Start(domain string, nameservers *utils.Nameservers) error {
-	var resArray []output.SingleCheckResult
+	c.output = &output.CheckOutput{
+		Name:        "DNSSEC implementation",
+		Domain:      domain,
+		Nameservers: nameservers.FQDNs,
+		Description: c.description,
+	}
+
 	for _, fqdn := range nameservers.FQDNs {
 		var res output.SingleCheckResult
 		res.Nameserver = fqdn
@@ -50,15 +56,7 @@ func (c *DNSSECCheck) Start(domain string, nameservers *utils.Nameservers) error
 			msg := fmt.Sprintf(c.poc, domain, fqdn)
 			res.Information = append(res.Information, msg)
 		}
-		resArray = append(resArray, res)
-	}
-
-	c.output = &output.CheckOutput{
-		Name:        "DNSSEC implementation",
-		Domain:      domain,
-		Nameservers: nameservers.FQDNs,
-		Description: c.description,
-		Results:     resArray,
+		c.output.Results = append(c.output.Results, res)
 	}
 	return nil
 }
