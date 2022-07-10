@@ -1,7 +1,9 @@
 package utils
 
 import (
+	"context"
 	"fmt"
+	"time"
 
 	"github.com/miekg/dns"
 )
@@ -11,7 +13,10 @@ func MakeQuery(c *dns.Client, query, nameserver string, qType uint16) (*dns.Msg,
 	m.RecursionDesired = true
 	m.SetQuestion(query, qType)
 
-	r, _, err := c.Exchange(m, nameserver)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	r, _, err := c.ExchangeContext(ctx, m, nameserver)
 	if err != nil {
 		return nil, err
 	}
