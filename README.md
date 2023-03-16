@@ -11,12 +11,19 @@ perfected. Right now is pretty accurate, but it might need more refinement.
 
 ## Install
 
-Go to the release page and get the latest for your arch. Or...
-I use Arch BTW:
+Install using go:
+
+```
+go install -v github.com/5amu/dnshunter/cmd/dnshunter@latest
+```
+
+Or use install using the AUR:
 
 ```bash
 paru -S dnshunter
 ```
+
+Or visit the release page and get the latest for your arch.
 
 ## Todo
 
