@@ -2,9 +2,7 @@ package main
 
 import (
 	"encoding/json"
-	"flag"
 	"fmt"
-	"log"
 	"os"
 	"strings"
 	"sync"
@@ -13,192 +11,73 @@ import (
 	"github.com/5amu/dnshunter/pkg/output"
 	"github.com/5amu/dnshunter/pkg/utils"
 	"github.com/miekg/dns"
+	"github.com/projectdiscovery/goflags"
 	"github.com/projectdiscovery/gologger"
 	"github.com/projectdiscovery/gologger/levels"
 )
 
-const Banner = `
+const Banner = `\033[0;35m
     ·▄▄▄▄   ▐ ▄ .▄▄ ·  ▄ .▄▄• ▄▌ ▐ ▄ ▄▄▄▄▄▄▄▄ .▄▄▄   
     ██▪ ██ •█▌▐█▐█ ▀. ██▪▐██▪██▌•█▌▐█•██  ▀▄.▀·▀▄ █· 
     ▐█· ▐█▌▐█▐▐▌▄▀▀▀█▄██▀▐██▌▐█▌▐█▐▐▌ ▐█.▪▐▀▀▪▄▐▀▀▄  
     ██. ██ ██▐█▌▐█▄▪▐███▌▐▀▐█▄█▌██▐█▌ ▐█▌·▐█▄▄▌▐█•█▌ 
     ▀▀▀▀▀• ▀▀ █▪ ▀▀▀▀ ▀▀▀ · ▀▀▀ ▀▀ █▪ ▀▀▀  ▀▀▀ .▀  ▀ 
                    -by 5amu (https://github.com/5amu)
-`
+\033[0m\n`
 
 // DNSHunterVersion tracks the version of the program
 const DNSHunterVersion = "v1.0"
 
-type Args struct {
-	HelpFlag    bool
-	VersionFlag bool
-	Silent      bool
-	Outfile     string
-	NSFile      string
-	Domain      string
-	CheckList   []checks.Check
-}
-
-func usage() {
-	fmt.Println("Usage: dnshunter -h|-v [-o|-n|-c <ARG>] <domain>")
-	fmt.Println("")
-	fmt.Println("OPTIONS:")
-	fmt.Println("    -h|-help        show the program usage and exit")
-	fmt.Println("    -V|-version     show the program version and exit")
-	fmt.Println("    -o|--outfile    save output in JSON format")
-	fmt.Println("    -n|--nsfile     file with nameservers (line separated)")
-	fmt.Println("    -c|--checklist  specify a single check (flag can be repeated)")
-	fmt.Println("    -v|--verbose    Print more information")
-	fmt.Println("")
-	fmt.Println("POSITIONAL:")
-	fmt.Println("")
-	fmt.Println("    <domain>        target domain")
-	fmt.Println("")
-	fmt.Println("POSSIBLE CHECKS:")
-	fmt.Println("")
-	fmt.Println("    soa             check SOA record fields for misconfigurations")
-	fmt.Println("    any             check for DNS amplification vulnerability (ANY query)")
-	fmt.Println("    glue            check if record NS provides GLUE records")
-	fmt.Println("    zone            check an unauthenticated zone transfer can be performed")
-	fmt.Println("    dnssec          check if DNSSSEC is implemented by nameserver(s)")
-	fmt.Println("    spf             check security of the SPF record")
-	fmt.Println("    dmarc           check security of the DMARC record")
-	fmt.Println("    dkim            check security of the DKIM record")
-	fmt.Println("    geo             check geographic distribution of ASNs")
-	fmt.Println("    irr             check validity of IRR for ASNs")
-	fmt.Println("    roa             check route signatures for ASNs")
-	fmt.Println("")
-}
-
-func ParseArgs() (*Args, error) {
-	if len(os.Args) < 2 {
-		usage()
-		return nil, fmt.Errorf("not enough arguments")
-	}
-
-	mainFlagSet := flag.NewFlagSet("dnshunter", flag.ContinueOnError)
-
-	var help1, help2 bool
-	mainFlagSet.BoolVar(&help1, "h", false, "")
-	mainFlagSet.BoolVar(&help2, "help", false, "")
-
-	var vers1, vers2 bool
-	mainFlagSet.BoolVar(&vers1, "V", false, "")
-	mainFlagSet.BoolVar(&vers2, "version", false, "")
-
-	var verbose1, verbose2 bool
-	mainFlagSet.BoolVar(&verbose1, "v", false, "")
-	mainFlagSet.BoolVar(&verbose2, "verbose", false, "")
-
-	var outfile1, outfile2 string
-	mainFlagSet.StringVar(&outfile1, "o", "", "")
-	mainFlagSet.StringVar(&outfile2, "outfile", "", "")
-
-	var nsfile1, nsfile2 string
-	mainFlagSet.StringVar(&nsfile1, "n", "", "")
-	mainFlagSet.StringVar(&nsfile2, "nsfile", "", "")
-
-	var checklist1, checklist2 []string
-	mainFlagSet.Func("c", "", func(s string) error {
-		checklist1 = append(checklist1, s)
-		return nil
-	})
-	mainFlagSet.Func("checklist", "", func(s string) error {
-		checklist2 = append(checklist2, s)
-		return nil
-	})
-
-	mainFlagSet.Usage = usage
-	if err := mainFlagSet.Parse(os.Args[1:]); err != nil {
-		return nil, err
-	}
-
-	if len(mainFlagSet.Args()) != 1 {
-		usage()
-		return nil, fmt.Errorf("please, specify a target domain")
-	}
-
-	if outfile1 != "" && outfile2 != "" {
-		return nil, fmt.Errorf("please, specify just one output file")
-	}
-
-	if nsfile1 != "" && nsfile2 != "" {
-		return nil, fmt.Errorf("please, specify just one output file")
-	}
-
-	checklist, err := parseChecklist(append(checklist1, checklist2...))
-	if err != nil {
-		return nil, err
-	}
-
-	return &Args{
-		HelpFlag:    help1 || help2,
-		VersionFlag: vers1 || vers2,
-		Silent:      !(verbose1 || verbose2),
-		Outfile:     outfile1 + outfile2,
-		NSFile:      nsfile1 + nsfile2,
-		Domain:      mainFlagSet.Arg(0),
-		CheckList:   checklist,
-	}, nil
-}
-
-func (a *Args) IsHelpVersion() bool {
-	if a.HelpFlag {
-		usage()
-		return true
-	}
-	if a.VersionFlag {
-		fmt.Println("version", DNSHunterVersion)
-		return true
+func contains(s []string, e string) bool {
+	for _, a := range s {
+		if a == e {
+			return true
+		}
 	}
 	return false
 }
 
-func parseChecklist(checklist []string) ([]checks.Check, error) {
-	if len(checklist) == 0 {
-		return checks.AllChecks(), nil
-	}
-
-	var out []checks.Check
-	for _, c := range checklist {
-		new := checks.NewCheck(strings.ToLower(c))
-		if new == nil {
-			return nil, fmt.Errorf("invalid check: %v", c)
+func uniq(strList []string) []string {
+	list := []string{}
+	for _, item := range strList {
+		if contains(list, item) {
+			list = append(list, item)
 		}
-		out = append(out, new)
 	}
-	return out, nil
+	return list
 }
 
-func (a *Args) Run() error {
-	gologger.Print().Msgf("\033[0;35m%v\033[0m\n", Banner)
+type options struct {
+	verbose   bool
+	outFile   string
+	domain    string
+	checklist goflags.StringSlice
+	checks    []checks.Check
+}
+
+func (opt *options) run() (err error) {
+	gologger.Print().Msg(Banner)
 	c := new(dns.Client)
 
 	gologger.DefaultLogger.SetMaxLevel(levels.LevelVerbose)
 
-	var err error
 	var nameservers *utils.Nameservers
-	if a.NSFile != "" {
-		nameservers, err = utils.NewNameserversFromFile(a.NSFile)
-	} else {
-		nameservers, err = utils.NewNameserversFromDomain(a.Domain)
-	}
-	if err != nil {
+	if nameservers, err = utils.NewNameserversFromDomain(opt.domain); err != nil {
 		return err
 	}
 
-	gologger.Info().Label("INFO").Msgf("scanning domain   : %v\n", a.Domain)
+	gologger.Info().Label("INFO").Msgf("scanning domain   : %v\n", opt.domain)
 	gologger.Info().Label("INFO").Msgf("using nameservers : %v\n", nameservers.FQDNs)
 	gologger.Info().Label("INFO").Msgf("with IPv4 version : %v\n", nameservers.IPs)
-	gologger.Info().Label("INFO").Msgf("saving output to  : %v\n\n", a.Outfile)
+	gologger.Info().Label("INFO").Msgf("saving output to  : %v\n\n", opt.outFile)
 
 	var wg sync.WaitGroup
 	resChan := make(chan *output.CheckOutput, 1)
-	for _, check := range a.CheckList {
+	for _, check := range opt.checks {
 		wg.Add(1)
 		go func(ch checks.Check) {
 			ch.Init(c)
-			if err := ch.Start(a.Domain, nameservers); err != nil {
+			if err := ch.Start(opt.domain, nameservers); err != nil {
 				gologger.Error().Label("ERR").Msgf("check failed with error: %v", err)
 			}
 			resChan <- ch.Results()
@@ -217,38 +96,93 @@ func (a *Args) Run() error {
 		select {
 		case <-done:
 			fmt.Println("")
-			if a.Outfile != "" {
+			if opt.outFile != "" {
 				if data, err := json.Marshal(results); err != nil {
 					return err
 				} else {
-					if err := os.WriteFile(a.Outfile, data, 0644); err != nil {
+					if err := os.WriteFile(opt.outFile, data, 0644); err != nil {
 						return err
 					}
 				}
 			}
 			return nil
 		case r := <-resChan:
-			if a.Silent {
-				r.PrintSilent()
-			} else {
+			if opt.verbose {
 				r.PrintVerbose()
+			} else {
+				r.PrintSilent()
 			}
 			results = append(results, r)
 		}
 	}
 }
 
+func argparse() (*options, error) {
+
+	opt := &options{}
+	flagSet := goflags.NewFlagSet()
+
+	flagSet.SetDescription("Make DNS and BGP assessment easier.")
+
+	flagSet.StringVarP(&opt.domain, "domain", "d", "", "provide domain to assess")
+	flagSet.StringVarP(&opt.outFile, "outfile", "o", "", "save output in JSON format")
+	flagSet.StringSliceVarP(&opt.checklist, "checklist", "c", []string{"all"}, "list of singular checks to be executed (comma-separated)", goflags.FileCommaSeparatedStringSliceOptions)
+	flagSet.BoolVarP(&opt.verbose, "verbose", "v", false, "print more information")
+
+	version := func() func() {
+		return func() {
+			fmt.Println("version", DNSHunterVersion)
+		}
+	}
+	flagSet.CallbackVarP(version(), "version", "V", "show the program version and exit")
+
+	flagSet.SetCustomHelpText(`POSSIBLE CHECKS:
+    soa             check SOA record fields for misconfigurations
+    any             check for DNS amplification vulnerability (ANY query)
+    glue            check if record NS provides GLUE records
+    zone            check an unauthenticated zone transfer can be performed
+    dnssec          check if DNSSSEC is implemented by nameserver(s)
+    spf             check security of the SPF record
+    dmarc           check security of the DMARC record
+    dkim            check security of the DKIM record
+    geo             check geographic distribution of ASNs
+    irr             check validity of IRR for ASNs
+    roa             check route signatures for ASNs
+	`)
+
+	if err := flagSet.Parse(); err != nil {
+		return nil, err
+	}
+
+	if opt.domain == "" {
+		return nil, fmt.Errorf("missing domain! (specify with -d)")
+	} else if len(strings.Split(opt.domain, ".")) != 2 {
+		return nil, fmt.Errorf("please provide a second-level domain\nhttps://en.wikipedia.org/wiki/Second-level_domain")
+	}
+
+	if len(opt.checklist) == 0 || contains(opt.checklist, "all") {
+		opt.checks = checks.AllChecks()
+	} else {
+		for _, c := range uniq(opt.checklist) {
+			new := checks.NewCheck(strings.ToLower(c))
+			if new == nil {
+				return nil, fmt.Errorf("invalid check: %v", c)
+			}
+			opt.checks = append(opt.checks, new)
+		}
+	}
+	return opt, nil
+}
+
 func main() {
-	cfg, err := ParseArgs()
+	opt, err := argparse()
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
+		os.Exit(1)
 	}
 
-	if cfg.IsHelpVersion() {
-		os.Exit(0)
-	}
-
-	if err := cfg.Run(); err != nil {
-		log.Fatal(err)
+	if err := opt.run(); err != nil {
+		fmt.Println(err)
+		os.Exit(1)
 	}
 }
