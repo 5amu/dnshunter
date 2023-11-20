@@ -3,7 +3,6 @@ package utils
 import (
 	"fmt"
 	"net"
-	"os"
 	"strings"
 
 	"github.com/5amu/dnshunter/pkg/defaults"
@@ -14,23 +13,6 @@ type Nameservers struct {
 	IPs      []net.IP
 	FQDNs    []string
 	fqdnToIP map[string]net.IP
-}
-
-func NewNameserversFromFile(fname string) (*Nameservers, error) {
-	if data, err := os.ReadFile(fname); err != nil {
-		return nil, err
-	} else {
-		nsStrings := strings.Split(string(data), "\n")
-		if len(nsStrings) == 0 {
-			return nil, fmt.Errorf("no nameservers in file %v", fname)
-		}
-
-		n := &Nameservers{FQDNs: nsStrings}
-		if err := n.prepare(); err != nil {
-			return nil, err
-		}
-		return n, nil
-	}
 }
 
 func NewNameserversFromDomain(domain string) (*Nameservers, error) {
