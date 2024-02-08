@@ -78,9 +78,13 @@ func (opt *options) run() (err error) {
 	for _, check := range opt.checks {
 		wg.Add(1)
 		go func(ch checks.Check) {
-			ch.Init(c)
-			if err := ch.Start(opt.domain, nameservers); err != nil {
-				gologger.Error().Label("ERR").Msgf("check failed with error: %v", err)
+			err := ch.Init(c)
+			if err != nil {
+				gologger.Error().Label("ERR").Msgf("check init error: %v", err)
+			} else {
+				if err := ch.Start(opt.domain, nameservers); err != nil {
+					gologger.Error().Label("ERR").Msgf("check failed with error: %v", err)
+				}
 			}
 			resChan <- ch.Results()
 			wg.Done()
