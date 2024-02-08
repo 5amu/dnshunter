@@ -12,10 +12,16 @@ require (
 )
 
 require (
+	github.com/mattn/go-colorable v0.1.13 // indirect
+	github.com/mattn/go-isatty v0.0.20 // indirect
+)
+
+require (
 	github.com/asaskevich/govalidator v0.0.0-20210307081110-f21760c49a8d // indirect
 	github.com/aymerick/douceur v0.2.0 // indirect
 	github.com/cnf/structhash v0.0.0-20201127153200-e1b16c1ebc08 // indirect
 	github.com/dsnet/compress v0.0.1 // indirect
+	github.com/fatih/color v1.16.0
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/gorilla/css v1.0.0 // indirect

@@ -2,7 +2,7 @@
     <br>
     <img src="assets/dnshunter_logo.png" width="200px" alt="DNSHunter">
     <br>
-    Go Active Directory
+    DNS Hunter
 </h1>
 
 <h4 align="center">A program to perform many DNS checks automatically.</h4>

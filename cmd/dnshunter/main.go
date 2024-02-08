@@ -10,20 +10,22 @@ import (
 	"github.com/5amu/dnshunter/pkg/checks"
 	"github.com/5amu/dnshunter/pkg/output"
 	"github.com/5amu/dnshunter/pkg/utils"
+	"github.com/fatih/color"
 	"github.com/miekg/dns"
 	"github.com/projectdiscovery/goflags"
 	"github.com/projectdiscovery/gologger"
 	"github.com/projectdiscovery/gologger/levels"
 )
 
-const Banner = `\033[0;35m
+const Banner = `
     ·▄▄▄▄   ▐ ▄ .▄▄ ·  ▄ .▄▄• ▄▌ ▐ ▄ ▄▄▄▄▄▄▄▄ .▄▄▄   
     ██▪ ██ •█▌▐█▐█ ▀. ██▪▐██▪██▌•█▌▐█•██  ▀▄.▀·▀▄ █· 
     ▐█· ▐█▌▐█▐▐▌▄▀▀▀█▄██▀▐██▌▐█▌▐█▐▐▌ ▐█.▪▐▀▀▪▄▐▀▀▄  
     ██. ██ ██▐█▌▐█▄▪▐███▌▐▀▐█▄█▌██▐█▌ ▐█▌·▐█▄▄▌▐█•█▌ 
     ▀▀▀▀▀• ▀▀ █▪ ▀▀▀▀ ▀▀▀ · ▀▀▀ ▀▀ █▪ ▀▀▀  ▀▀▀ .▀  ▀ 
                    -by 5amu (https://github.com/5amu)
-\033[0m\n`
+
+`
 
 // DNSHunterVersion tracks the version of the program
 const DNSHunterVersion = "v1.0"
@@ -56,9 +58,9 @@ type options struct {
 }
 
 func (opt *options) run() (err error) {
-	gologger.Print().Msg(Banner)
-	c := new(dns.Client)
+	color.Magenta(Banner)
 
+	c := new(dns.Client)
 	gologger.DefaultLogger.SetMaxLevel(levels.LevelVerbose)
 
 	var nameservers *utils.Nameservers
