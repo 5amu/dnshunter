@@ -11,7 +11,7 @@
     <img src="https://img.shields.io/github/go-mod/go-version/5amu/dnshunter">
     <img src="https://github.com/5amu/dnshunter/actions/workflows/goreleaser.yml/badge.svg">
     <img src="https://github.com/5amu/dnshunter/actions/workflows/lint-test.yml/badge.svg">
-    <img src="https://github.com/5amu/dnshunter/actions/workflows/release.yml/badge.svg">
+    <img src="https://github.com/5amu/dnshunter/actions/workflows/build-test.yml/badge.svg">
 </p>
 
 ---
