@@ -1,8 +1,20 @@
-[![goreleaser](https://github.com/5amu/dnshunter/actions/workflows/goreleaser.yml/badge.svg)](https://github.com/5amu/dnshunter/actions/workflows/goreleaser.yml)
+<h1 align="center">
+    <br>
+    <img src="assets/dnshunter_logo.png" width="200px" alt="DNSHunter">
+    <br>
+    Go Active Directory
+</h1>
 
-# ~# dnshunter
+<h4 align="center">A program to perform many DNS checks automatically.</h4>
 
-Make DNS and BGP assessment easier. Just a program to perform many DNS checks automatically. 
+<p align="center">
+    <img src="https://img.shields.io/github/go-mod/go-version/5amu/dnshunter">
+    <img src="https://github.com/5amu/dnshunter/actions/workflows/goreleaser.yml/badge.svg">
+</p>
+
+---
+
+DNSHunter is a tool to perform various checks on a DNS zone. It is aimed to security professionals that will check the security of a Nameserver and BGP infrastructure.
 
 ## Install
 
@@ -14,8 +26,10 @@ go install -v github.com/5amu/dnshunter/cmd/dnshunter@latest
 
 Or visit the release page and get the latest for your arch.
 
-## Todo
+## Usage
 
-* [ ] Implement BGP IRR check
-* [ ] Find a way to query the ROA for ASNs (bgpmon is now owned by Cisco)
-* [ ] Implement Subdomain takeover check if possible
+It's still in heavy development and arguments might change in the future, so refer to the help switch:
+
+```bash
+dnshunter -h
+```
