@@ -2,8 +2,6 @@ module github.com/5amu/dnshunter
 
 go 1.21
 
-toolchain go1.21.4
-
 require (
 	github.com/likexian/whois v1.15.1
 	github.com/miekg/dns v1.1.57
