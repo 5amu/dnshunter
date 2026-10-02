@@ -78,6 +78,14 @@ func (r *RIPEstat) get(ctx context.Context, call string, params url.Values, out 
 
 	e.once.Do(func() { e.data, e.err = r.fetch(ctx, u) })
 	if e.err != nil {
+		if isContextError(e.err) {
+			// Do not let a cancelled caller poison the cache.
+			r.mu.Lock()
+			if r.cache[u] == e {
+				delete(r.cache, u)
+			}
+			r.mu.Unlock()
+		}
 		return e.err
 	}
 	if err := json.Unmarshal(e.data, out); err != nil {
@@ -132,6 +140,10 @@ func (r *RIPEstat) fetch(ctx context.Context, u string) (json.RawMessage, error)
 		return nil, fmt.Errorf("ripestat: empty data")
 	}
 	return env.Data, nil
+}
+
+func isContextError(err error) bool {
+	return errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)
 }
 
 // unwrapURLError drops the method and URL from *url.Error messages.

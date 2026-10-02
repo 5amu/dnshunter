@@ -261,5 +261,12 @@ func (m *memo[K, V]) do(k K, fn func() (V, error)) (V, error) {
 	}
 	m.mu.Unlock()
 	e.once.Do(func() { e.v, e.err = fn() })
+	if e.err != nil && isContextError(e.err) {
+		m.mu.Lock()
+		if m.m[k] == e {
+			delete(m.m, k)
+		}
+		m.mu.Unlock()
+	}
 	return e.v, e.err
 }

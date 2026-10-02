@@ -283,3 +283,18 @@ func TestServiceIRRFromRIPEstat(t *testing.T) {
 		t.Fatalf("covering = %v", st.Covering)
 	}
 }
+
+func TestCancelledCallDoesNotPoisonCache(t *testing.T) {
+	s, hits := statServer(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := s.ASOverview(ctx, 3333); err == nil {
+		t.Fatal("expected context error")
+	}
+	if _, err := s.ASOverview(context.Background(), 3333); err != nil {
+		t.Fatalf("cancelled call poisoned the cache: %v", err)
+	}
+	if atomic.LoadInt32(hits) != 1 {
+		t.Fatalf("hits = %d", atomic.LoadInt32(hits))
+	}
+}
