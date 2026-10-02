@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-labelledby="title">
+  <title id="title">DNSHunter</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#12304D"/>
+      <stop offset="1" stop-color="#0A1A2B"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <!-- Reticle -->
+  <g fill="none" stroke="#E6EDF5" stroke-width="16">
+    <circle cx="256" cy="256" r="168"/>
+    <path d="M256 84V52M256 428V460M84 256H52M428 256H460"/>
+  </g>
+  <!-- DNS hierarchy -->
+  <path d="M256 144V200M168 256V200H344V256M256 200V222M256 290V312M184 368V312H328V368M256 312V368"
+        fill="none" stroke="#6B88A6" stroke-width="8" stroke-linejoin="round"/>
+  <g fill="#C9D6E3">
+    <circle cx="256" cy="144" r="14"/>
+    <circle cx="168" cy="256" r="14"/>
+    <circle cx="344" cy="256" r="14"/>
+    <circle cx="184" cy="368" r="14"/>
+    <circle cx="256" cy="368" r="14"/>
+    <circle cx="328" cy="368" r="14"/>
+  </g>
+  <!-- Target -->
+  <circle cx="256" cy="256" r="34" fill="none" stroke="#22D3EE" stroke-width="6"/>
+  <circle cx="256" cy="256" r="20" fill="#22D3EE"/>
+</svg>
