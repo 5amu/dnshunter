@@ -175,8 +175,12 @@ func parseFlags(args []string, stderr io.Writer) (*options, *flag.FlagSet, error
 		return nil, fs, fmt.Errorf("unexpected arguments: %s", strings.Join(rest, " "))
 	}
 	if opt.failOn != "" {
-		if _, err := core.ParseSeverity(opt.failOn); err != nil {
+		sev, err := core.ParseSeverity(opt.failOn)
+		if err != nil {
 			return nil, fs, err
+		}
+		if sev == core.SeverityNone {
+			return nil, fs, fmt.Errorf("-fail-on must be low, medium, high or critical")
 		}
 	}
 	return opt, fs, nil
@@ -323,6 +327,9 @@ func scan(ctx context.Context, opt *options, stdout, stderr io.Writer) (int, err
 	}
 	if ctx.Err() != nil {
 		return exitError, fmt.Errorf("interrupted")
+	}
+	if rep.Summary.Errors == len(rep.Results) {
+		return exitError, fmt.Errorf("every check failed to complete: no result can be trusted")
 	}
 	if opt.failOn != "" {
 		threshold, _ := core.ParseSeverity(opt.failOn)

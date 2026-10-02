@@ -49,7 +49,7 @@ func Markdown(w io.Writer, rep *Report) error {
 	}
 
 	s := rep.Summary
-	fmt.Fprintf(&b, "\n## Summary\n\n%d checks, %d with issues, %d errors.\n\n", s.Checks, s.Failed, s.Errors)
+	fmt.Fprintf(&b, "\n## Summary\n\n%d checks, %d with issues, %d errors, %d partial.\n\n", s.Checks, s.Failed, s.Errors, s.Partial)
 	b.WriteString("| Severity | Findings |\n|---|---|\n")
 	for _, sev := range []core.Severity{core.SeverityCritical, core.SeverityHigh, core.SeverityMedium, core.SeverityLow} {
 		fmt.Fprintf(&b, "| %s | %d |\n", sev, s.Findings[sev.String()])

@@ -98,6 +98,8 @@ func statusLabel(r *core.Result) string {
 		return cPass.Sprint("PASS")
 	case core.StatusError:
 		return cError.Sprint("ERROR")
+	case core.StatusPartial:
+		return cError.Sprint("PARTIAL")
 	case core.StatusSkip:
 		return cSkip.Sprint("SKIPPED")
 	default:
@@ -190,7 +192,7 @@ func (c *Console) finding(f core.Finding) {
 func (c *Console) Summary(rep *Report) {
 	s := rep.Summary
 	_, _ = cBold.Fprintf(c.W, "Summary for %s: ", rep.Target.Domain)
-	_, _ = fmt.Fprintf(c.W, "%d checks, %d with issues, %d errors - findings: ", s.Checks, s.Failed, s.Errors)
+	_, _ = fmt.Fprintf(c.W, "%d checks, %d with issues, %d errors, %d partial - findings: ", s.Checks, s.Failed, s.Errors, s.Partial)
 	var parts []string
 	for _, sev := range []core.Severity{core.SeverityCritical, core.SeverityHigh, core.SeverityMedium, core.SeverityLow} {
 		parts = append(parts, severityColor(sev).Sprintf("%d %s", s.Findings[sev.String()], sev))

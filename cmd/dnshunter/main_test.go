@@ -24,6 +24,10 @@ func TestCLI(t *testing.T) {
 		t.Fatalf("bad severity: %d %q", code, errOut.String())
 	}
 	errOut.Reset()
+	if code := run([]string{"-fail-on", "none", "example.com"}, &out, &errOut); code != exitError {
+		t.Fatalf("-fail-on none: %d %q", code, errOut.String())
+	}
+	errOut.Reset()
 	if code := run([]string{"-c", "bogus", "-nb", "example.com"}, &out, &errOut); code != exitError || !strings.Contains(errOut.String(), "unknown check") {
 		t.Fatalf("bad check: %d %q", code, errOut.String())
 	}

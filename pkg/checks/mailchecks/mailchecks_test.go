@@ -216,3 +216,11 @@ func TestDKIMWeakKey(t *testing.T) {
 	testenv.Expect(t, r, fail, high, "only 512 bits")
 	testenv.Expect(t, r, fail, med, "SHA-1 is forbidden")
 }
+
+func TestSPFIgnoresTermsAfterAll(t *testing.T) {
+	r := spf(t, `example.test. 300 IN TXT "v=spf1 -all include:a.test include:b.test include:c.test a mx a mx a mx a mx"`)
+	if r.Status != pass {
+		t.Fatalf("terms after all were evaluated:\n%s", testenv.Dump(r))
+	}
+	testenv.Expect(t, r, pass, none, "requires 0 DNS lookups")
+}

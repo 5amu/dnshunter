@@ -107,7 +107,7 @@ var ErrNoSource = errors.New("data source disabled")
 
 // Profile returns the routing profile of ip.
 func (s *Service) Profile(ctx context.Context, ip net.IP) (*Profile, error) {
-	return s.profiles.do(ip.String(), func() (*Profile, error) {
+	return s.profiles.do(ctx, ip.String(), func() (*Profile, error) {
 		p := &Profile{IP: ip}
 		if r := ReservedRange(ip); r != "" {
 			p.Reserved = r
@@ -139,7 +139,7 @@ func (s *Service) Profile(ctx context.Context, ip net.IP) (*Profile, error) {
 
 // AS returns registration details of asn.
 func (s *Service) AS(ctx context.Context, asn uint32) (*ASInfo, error) {
-	return s.ases.do(asn, func() (*ASInfo, error) {
+	return s.ases.do(ctx, asn, func() (*ASInfo, error) {
 		as, err := s.Cymru.AS(ctx, asn)
 		if err != nil && s.Stat != nil {
 			if sa, serr := s.Stat.ASOverview(ctx, asn); serr == nil {
@@ -249,24 +249,32 @@ type memoEntry[V any] struct {
 	err  error
 }
 
-func (m *memo[K, V]) do(k K, fn func() (V, error)) (V, error) {
-	m.mu.Lock()
-	if m.m == nil {
-		m.m = map[K]*memoEntry[V]{}
-	}
-	e, ok := m.m[k]
-	if !ok {
-		e = &memoEntry[V]{}
-		m.m[k] = e
-	}
-	m.mu.Unlock()
-	e.once.Do(func() { e.v, e.err = fn() })
-	if e.err != nil && isContextError(e.err) {
+func (m *memo[K, V]) do(ctx context.Context, k K, fn func() (V, error)) (V, error) {
+	for attempt := 0; ; attempt++ {
+		m.mu.Lock()
+		if m.m == nil {
+			m.m = map[K]*memoEntry[V]{}
+		}
+		e, ok := m.m[k]
+		if !ok {
+			e = &memoEntry[V]{}
+			m.m[k] = e
+		}
+		m.mu.Unlock()
+		e.once.Do(func() { e.v, e.err = fn() })
+		if e.err == nil || !isContextError(e.err) {
+			return e.v, e.err
+		}
+		// Interrupted by the cancellation of the caller that ran fn
+		// (possibly another check): forget the result and retry with our
+		// own function and context, unless our context is done too.
 		m.mu.Lock()
 		if m.m[k] == e {
 			delete(m.m, k)
 		}
 		m.mu.Unlock()
+		if ctx.Err() != nil || attempt >= 2 {
+			return e.v, e.err
+		}
 	}
-	return e.v, e.err
 }

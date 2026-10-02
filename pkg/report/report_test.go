@@ -91,7 +91,7 @@ func TestMarkdownAndConsole(t *testing.T) {
 		c.Result(r)
 	}
 	c.Summary(rep)
-	for _, want := range []string{"FAIL (high)", "HIGH   ns1 (192.0.2.1): zone transfer allowed", "PoC: dig TXT example.com", "check did not complete: ripestat unreachable", "3 checks, 2 with issues, 1 errors"} {
+	for _, want := range []string{"FAIL (high)", "HIGH   ns1 (192.0.2.1): zone transfer allowed", "PoC: dig TXT example.com", "check did not complete: ripestat unreachable", "3 checks, 2 with issues, 1 errors, 0 partial"} {
 		if !strings.Contains(out.String(), want) {
 			t.Errorf("console missing %q:\n%s", want, out.String())
 		}

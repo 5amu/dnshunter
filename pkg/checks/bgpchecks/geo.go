@@ -52,6 +52,7 @@ func runGEO(ctx context.Context, env *core.Env, r *core.Result) error {
 	asns := map[uint32][]string{}
 	countries := map[string][]string{}
 	allAnycast, providers, independent := true, map[string]bool{}, 0
+	unmapped := 0
 	for i, t := range ts {
 		switch {
 		case t.p != nil && t.p.Reserved != "":
@@ -59,6 +60,7 @@ func runGEO(ctx context.Context, env *core.Env, r *core.Result) error {
 			continue
 		case t.err != nil || t.p == nil || t.p.Origin == nil:
 			r.Add(core.Errorf(t.subject(), "routing lookup failed: %v", t.err))
+			unmapped++
 			continue
 		}
 		desc := describeProfile(t.p)
@@ -102,6 +104,11 @@ func runGEO(ctx context.Context, env *core.Env, r *core.Result) error {
 	summary := fmt.Sprintf("nameservers spread over %d AS (%s) and %d countries (%s, by geolocation or registration)",
 		len(asns), strings.Join(asNames, ", "), len(countries), strings.Join(ccs, ", "))
 	anycastNote := "the provider serves DNS over anycast, which mitigates geographic concentration"
+	if unmapped > 0 {
+		// Concentration verdicts would be built on partial data.
+		r.Add(core.Info(env.Target.Zone, summary, fmt.Sprintf("%d nameserver addresses could not be mapped: diversity not assessed", unmapped)))
+		return nil
+	}
 
 	if len(asns) == 1 {
 		details := []string{"an outage or routing incident affecting this AS makes the domain unresolvable"}

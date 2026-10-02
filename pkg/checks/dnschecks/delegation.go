@@ -90,27 +90,34 @@ func runDelegation(ctx context.Context, env *core.Env, r *core.Result) error {
 		}
 	}
 
-	// Network diversity (RFC 2182 §3.1).
-	nets := map[string][]string{}
+	// Network diversity (RFC 2182 §3.1): IPv4 /24 and IPv6 /48 networks.
+	nets := map[string]bool{}
 	var v4, v6 int
+	resolved := 0
 	for _, ns := range t.Nameservers {
+		if len(ns.IPs) > 0 {
+			resolved++
+		}
 		for _, ip := range ns.IPs {
 			if ip4 := ip.To4(); ip4 != nil {
 				v4++
-				key := ip4.Mask(net.CIDRMask(24, 32)).String() + "/24"
-				nets[key] = append(nets[key], ns.Name)
+				nets[ip4.Mask(net.CIDRMask(24, 32)).String()+"/24"] = true
 			} else {
 				v6++
+				nets[ip.Mask(net.CIDRMask(48, 128)).String()+"/48"] = true
 			}
 		}
 	}
-	if len(t.Nameservers) > 1 && len(nets) == 1 {
+	switch {
+	case len(t.Nameservers) < 2 || resolved < len(t.Nameservers):
+		// Not enough data to judge the diversity.
+	case len(nets) == 1:
 		for subnet := range nets {
-			r.Add(core.Fail(core.SeverityLow, zone, "all nameservers are in the same /24 network",
+			r.Add(core.Fail(core.SeverityLow, zone, "all nameservers are in the same network",
 				fmt.Sprintf("%s hosts every nameserver: a single network outage takes the domain offline (RFC 2182)", subnet)))
 		}
-	} else if len(nets) > 1 {
-		r.Add(core.Pass(zone, fmt.Sprintf("nameservers are spread over %d different /24 networks", len(nets))))
+	default:
+		r.Add(core.Pass(zone, fmt.Sprintf("nameservers are spread over %d different networks (/24 for IPv4, /48 for IPv6)", len(nets))))
 	}
 	if v4 > 0 && v6 == 0 {
 		r.Add(core.Info(zone, "no nameserver is reachable over IPv6"))

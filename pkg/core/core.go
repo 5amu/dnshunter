@@ -104,6 +104,9 @@ const (
 	StatusInfo  Status = "info"
 	StatusSkip  Status = "skipped"
 	StatusError Status = "error"
+	// StatusPartial marks a result without failures where part of the
+	// subjects could not be tested.
+	StatusPartial Status = "partial"
 )
 
 // Finding is a single observation produced by a check.
@@ -204,6 +207,8 @@ func (r *Result) Finalize() {
 		r.Status = StatusFail
 	case r.Error != "" || (errs > 0 && pass == 0):
 		r.Status = StatusError
+	case errs > 0:
+		r.Status = StatusPartial
 	case pass > 0:
 		r.Status = StatusPass
 	case info > 0:

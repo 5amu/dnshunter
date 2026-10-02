@@ -3,6 +3,7 @@ package dnschecks
 import (
 	"context"
 	"fmt"
+	"net"
 	"strings"
 
 	"github.com/5amu/dnshunter/pkg/core"
@@ -45,33 +46,60 @@ func runAXFR(ctx context.Context, env *core.Env, r *core.Result) error {
 func tryAXFR(ctx context.Context, env *core.Env, ep target.Endpoint, zone string) core.Finding {
 	m := new(dns.Msg)
 	m.SetAxfr(dns.Fqdn(zone))
-	tr := &dns.Transfer{
-		DialTimeout:  env.DNS.Timeout,
-		ReadTimeout:  3 * env.DNS.Timeout,
-		WriteTimeout: env.DNS.Timeout,
-	}
-	ch, err := tr.In(m, env.DNS.Addr(ep.IP))
+	addr := env.DNS.Addr(ep.IP)
+	d := net.Dialer{Timeout: env.DNS.Timeout}
+	conn, err := d.DialContext(ctx, "tcp", addr)
 	if err != nil {
 		return core.Errorf(ep.String(), "could not connect over TCP: %v", err)
 	}
+	defer func() { _ = conn.Close() }()
+	// Closing the connection when the check is cancelled unblocks the
+	// transfer goroutine, even on a server that trickles data slowly.
+	stop := context.AfterFunc(ctx, func() { _ = conn.Close() })
+	defer stop()
+
+	tr := &dns.Transfer{
+		Conn:         &dns.Conn{Conn: conn},
+		ReadTimeout:  3 * env.DNS.Timeout,
+		WriteTimeout: env.DNS.Timeout,
+	}
+	ch, err := tr.In(m, addr)
+	if err != nil {
+		return core.Errorf(ep.String(), "could not send the AXFR query: %v", err)
+	}
+	// Drain the channel on return so the transfer goroutine can exit.
+	defer func() {
+		go func() {
+			for range ch {
+			}
+		}()
+	}()
+
 	var records []dns.RR
 	var transferErr error
-	for env := range ch {
-		if env.Error != nil {
-			transferErr = env.Error
-			break
+loop:
+	for {
+		select {
+		case e, ok := <-ch:
+			if !ok {
+				break loop
+			}
+			if e.Error != nil {
+				transferErr = e.Error
+				break loop
+			}
+			records = append(records, e.RR...)
+		case <-ctx.Done():
+			transferErr = ctx.Err()
+			break loop
 		}
-		records = append(records, env.RR...)
 	}
-	// Drain the channel so the transfer goroutine can exit.
-	go func() {
-		for range ch {
+	// A transfer starts and ends with the SOA record: a lone SOA is not a
+	// disclosure of the zone content.
+	if len(records) < 2 {
+		if ctx.Err() != nil {
+			return core.Errorf(ep.String(), "zone transfer interrupted: %v", ctx.Err())
 		}
-	}()
-	if ctx.Err() != nil {
-		return core.Errorf(ep.String(), "interrupted: %v", ctx.Err())
-	}
-	if len(records) == 0 {
 		reason := "zone transfer refused"
 		if transferErr != nil {
 			reason = fmt.Sprintf("zone transfer refused (%v)", transferErr)

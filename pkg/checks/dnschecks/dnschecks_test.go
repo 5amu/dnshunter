@@ -29,7 +29,7 @@ func TestHealthyZone(t *testing.T) {
 	testenv.Expect(t, r, pass, none, "2 nameservers")
 	testenv.Expect(t, r, pass, none, "NS set at the parent (test) matches the zone")
 	testenv.Expect(t, r, pass, none, "answers authoritatively")
-	testenv.Expect(t, r, pass, none, "different /24 networks")
+	testenv.Expect(t, r, pass, none, "spread over 2 different networks")
 	if r.Status != pass {
 		t.Errorf("ns status = %s\n%s", r.Status, testenv.Dump(r))
 	}
@@ -263,4 +263,47 @@ func TestDNSSECIslandAndMissingKeys(t *testing.T) {
 	w2.Resolver.AddRR(k.ksk.ToDS(dns.SHA256))
 	r = testenv.Run(t, w2.Env(testenv.Zone), dnschecks.DNSSEC)
 	testenv.Expect(t, r, fail, high, "DS record published at the parent but the nameservers serve no DNSKEY")
+}
+
+func TestAXFRLoneSOAIsNotADisclosure(t *testing.T) {
+	w := testenv.New(t)
+	lone := func(rw dns.ResponseWriter, r *dns.Msg) bool {
+		if r.Question[0].Qtype != dns.TypeAXFR {
+			return false
+		}
+		m := new(dns.Msg)
+		m.SetReply(r)
+		soa, _ := dns.NewRR("example.test. 3600 IN SOA ns1.example.test. hostmaster.example.test. 1 2 3 4 5")
+		m.Answer = []dns.RR{soa}
+		_ = rw.WriteMsg(m)
+		_ = rw.Close()
+		return true
+	}
+	w.NS1.SetHook(lone)
+	w.NS2.SetHook(lone)
+	r := testenv.Run(t, w.Env(testenv.Zone), dnschecks.AXFR)
+	if len(r.Failed()) != 0 {
+		t.Fatalf("lone SOA reported as zone transfer:\n%s", testenv.Dump(r))
+	}
+}
+
+func TestPartialWhenSomeServersAreUnreachable(t *testing.T) {
+	w := testenv.New(t)
+	w.Client.Overrides[testenv.NS2IP] = "127.0.0.1:1" // closed port
+	r := testenv.Run(t, w.Env(testenv.Zone), dnschecks.AXFR)
+	if r.Status != core.StatusPartial {
+		t.Fatalf("status = %s, want partial\n%s", r.Status, testenv.Dump(r))
+	}
+}
+
+func TestDelegationDiversityWithIPv6OnlyNameserver(t *testing.T) {
+	w := testenv.New(t)
+	w.Resolver.Remove("ns2.example.test", dns.TypeA)
+	w.Resolver.Add(t, "ns2.example.test. 3600 IN AAAA 2001:4860:4860::8888")
+	w.Client.Overrides["2001:4860:4860::8888"] = w.NS2.Addr
+	r := testenv.Run(t, w.Env(testenv.Zone), dnschecks.Delegation)
+	if len(testenv.Find(r, "same network")) != 0 {
+		t.Fatalf("IPv6-only nameserver ignored in the diversity verdict:\n%s", testenv.Dump(r))
+	}
+	testenv.Expect(t, r, pass, none, "spread over 2 different networks")
 }

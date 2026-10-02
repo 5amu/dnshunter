@@ -147,6 +147,11 @@ func (e *spfEval) walk(domain string, depth int, top bool) (string, bool) {
 	hasAll := false
 	redirect := ""
 	for _, t := range terms {
+		if hasAll {
+			// RFC 7208 §5.1: mechanisms after "all" are never evaluated,
+			// and redirect= is ignored when "all" is present.
+			break
+		}
 		if t.modifier {
 			if t.name == "redirect" {
 				redirect = t.arg

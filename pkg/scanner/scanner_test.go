@@ -48,7 +48,7 @@ func TestRunOrderPanicAndTimeout(t *testing.T) {
 	if res[3].Status != core.StatusError {
 		t.Errorf("error = %s", res[3].Status)
 	}
-	if res[4].Status != core.StatusPass {
-		t.Errorf("pass = %s", res[4].Status)
+	if res[4].Status != core.StatusPartial {
+		t.Errorf("pass with an error = %s, want partial", res[4].Status)
 	}
 }

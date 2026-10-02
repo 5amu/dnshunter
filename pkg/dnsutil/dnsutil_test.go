@@ -2,6 +2,7 @@ package dnsutil_test
 
 import (
 	"context"
+	"errors"
 	"net"
 	"strings"
 	"testing"
@@ -177,5 +178,39 @@ func TestTruncatedAnswerWithoutTCPIsAnError(t *testing.T) {
 	c := dnsutil.New([]string{udpOnly.Addr}, time.Second, 0)
 	if _, err := c.Lookup(context.Background(), "big.example.com", dns.TypeTXT); err == nil || !strings.Contains(err.Error(), "truncated") {
 		t.Fatalf("expected truncation error, got %v", err)
+	}
+}
+
+func TestLookupSetsCheckingDisabled(t *testing.T) {
+	// A validating resolver answers SERVFAIL for a bogus zone unless the CD
+	// bit is set; the zone must stay analyzable.
+	validating := dnstest.Start(t)
+	validating.SetHook(func(w dns.ResponseWriter, r *dns.Msg) bool {
+		m := new(dns.Msg)
+		m.SetReply(r)
+		if !r.CheckingDisabled {
+			m.Rcode = dns.RcodeServerFailure
+		} else {
+			soa, _ := dns.NewRR("bogus.test. 300 IN SOA ns.bogus.test. h.bogus.test. 1 2 3 4 5")
+			m.Answer = append(m.Answer, soa)
+		}
+		_ = w.WriteMsg(m)
+		return true
+	})
+	c := dnsutil.New([]string{validating.Addr}, time.Second, 0)
+	if zone, err := c.FindZone(context.Background(), "bogus.test"); err != nil || zone != "bogus.test" {
+		t.Fatalf("FindZone = %q, %v", zone, err)
+	}
+}
+
+func TestCancelledQueryReturnsContextError(t *testing.T) {
+	srv := dnstest.Start(t)
+	srv.SetHook(func(dns.ResponseWriter, *dns.Msg) bool { return true }) // never answers
+	c := dnsutil.New([]string{srv.Addr}, 5*time.Second, 0)
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+	_, err := c.Lookup(ctx, "example.com", dns.TypeA)
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("expected a context error, got %v", err)
 	}
 }

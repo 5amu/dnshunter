@@ -298,3 +298,51 @@ func TestCancelledCallDoesNotPoisonCache(t *testing.T) {
 		t.Fatalf("hits = %d", atomic.LoadInt32(hits))
 	}
 }
+
+func TestSlowRequestDoesNotDisableRIPEstat(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/data/as-overview/data.json" && r.URL.Query().Get("resource") == "AS1" {
+			time.Sleep(300 * time.Millisecond)
+		}
+		_, _ = w.Write([]byte(statFixtures["/data/as-overview/data.json"]))
+	}))
+	defer srv.Close()
+	s := NewRIPEstat(srv.URL+"/data", 100*time.Millisecond)
+	if _, err := s.ASOverview(context.Background(), 1); err == nil || !strings.Contains(err.Error(), "timed out") {
+		t.Fatalf("expected timeout, got %v", err)
+	}
+	if _, err := s.ASOverview(context.Background(), 2); err != nil {
+		t.Fatalf("a single timeout disabled RIPEstat: %v", err)
+	}
+}
+
+func TestWaiterRetriesAfterAnotherCallersCancellation(t *testing.T) {
+	release := make(chan struct{})
+	var hits int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if atomic.AddInt32(&hits, 1) == 1 {
+			<-release
+		}
+		_, _ = w.Write([]byte(statFixtures["/data/as-overview/data.json"]))
+	}))
+	defer srv.Close()
+	defer close(release)
+	s := NewRIPEstat(srv.URL+"/data", 5*time.Second)
+
+	ctxA, cancelA := context.WithCancel(context.Background())
+	errA := make(chan error, 1)
+	go func() { _, err := s.ASOverview(ctxA, 3333); errA <- err }()
+	for atomic.LoadInt32(&hits) == 0 {
+		time.Sleep(5 * time.Millisecond)
+	}
+	errB := make(chan error, 1)
+	go func() { _, err := s.ASOverview(context.Background(), 3333); errB <- err }()
+	time.Sleep(20 * time.Millisecond)
+	cancelA()
+	if err := <-errA; err == nil {
+		t.Fatal("caller A should see its cancellation")
+	}
+	if err := <-errB; err != nil {
+		t.Fatalf("caller B inherited A's cancellation: %v", err)
+	}
+}

@@ -32,6 +32,9 @@ type Summary struct {
 	Failed int `json:"failed"`
 	// Errors is the number of checks that could not complete.
 	Errors int `json:"errors"`
+	// Partial is the number of checks without failures that could only
+	// test part of their subjects.
+	Partial int `json:"partial"`
 	// Findings counts failed findings by severity.
 	Findings map[string]int `json:"findings_by_severity"`
 	// MaxSeverity is the highest severity among failed findings.
@@ -50,6 +53,8 @@ func Summarize(results []*core.Result) Summary {
 			s.Failed++
 		case core.StatusError:
 			s.Errors++
+		case core.StatusPartial:
+			s.Partial++
 		}
 		for _, f := range r.Failed() {
 			s.Findings[f.Severity.String()]++

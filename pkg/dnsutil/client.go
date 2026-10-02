@@ -168,9 +168,27 @@ func (c *Client) exchange(ctx context.Context, dc *dns.Client, m *dns.Msg, serve
 		if err == nil {
 			return r, nil
 		}
+		if cerr := contextDone(ctx); cerr != nil {
+			// Report the caller's cancellation rather than the I/O error it
+			// caused, so callers can tell the two apart.
+			return nil, fmt.Errorf("query %s %s to %s: %w", m.Question[0].Name, dns.TypeToString[m.Question[0].Qtype], server, cerr)
+		}
 		lastErr = err
 	}
 	return nil, fmt.Errorf("query %s %s to %s: %w", m.Question[0].Name, dns.TypeToString[m.Question[0].Qtype], server, lastErr)
+}
+
+// contextDone returns the context error, also when the deadline has passed
+// but the context timer has not fired yet (the socket deadline, set to the
+// same instant, usually expires first).
+func contextDone(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if dl, ok := ctx.Deadline(); ok && !time.Now().Before(dl) {
+		return context.DeadlineExceeded
+	}
+	return nil
 }
 
 // Query asks server (host:port) about name/qtype.
@@ -181,11 +199,15 @@ func (c *Client) Query(ctx context.Context, server, name string, qtype uint16, o
 // ErrNoResolver is returned when every configured resolver failed.
 var ErrNoResolver = errors.New("no resolver returned a usable answer")
 
-// Lookup performs a recursive query through the configured resolvers. The
-// first answer whose rcode is not SERVFAIL/REFUSED is returned; NXDOMAIN and
-// NODATA answers are returned as-is so callers can tell them apart.
+// Lookup performs a recursive query, with the CD bit set, through the
+// configured resolvers. The first answer whose rcode is not SERVFAIL/REFUSED
+// is returned; NXDOMAIN and NODATA answers are returned as-is so callers can
+// tell them apart.
 func (c *Client) Lookup(ctx context.Context, name string, qtype uint16, opts ...QueryOption) (*dns.Msg, error) {
 	m := NewMsg(name, qtype, opts...)
+	// Disable DNSSEC validation on the resolver: a zone with a broken chain
+	// of trust must still be analyzable (dnshunter validates it itself).
+	m.CheckingDisabled = true
 	lastErr := ErrNoResolver
 	for _, res := range c.Resolvers {
 		r, err := c.Exchange(ctx, m, res)

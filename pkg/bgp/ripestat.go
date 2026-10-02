@@ -30,9 +30,10 @@ type RIPEstat struct {
 	sem   chan struct{}
 	mu    sync.Mutex
 	cache map[string]*cacheEntry
-	// down is set after a transport error: RIPEstat is then considered
-	// unreachable and later calls fail immediately instead of timing out.
-	down error
+	// down is set when RIPEstat cannot be reached (connection errors or
+	// repeated timeouts): later calls then fail immediately.
+	down     error
+	timeouts int
 }
 
 type cacheEntry struct {
@@ -68,24 +69,33 @@ func (r *RIPEstat) get(ctx context.Context, call string, params url.Values, out 
 	params.Set("sourceapp", r.SourceApp)
 	u := fmt.Sprintf("%s/%s/data.json?%s", r.BaseURL, call, params.Encode())
 
-	r.mu.Lock()
-	e, ok := r.cache[u]
-	if !ok {
-		e = &cacheEntry{}
-		r.cache[u] = e
-	}
-	r.mu.Unlock()
-
-	e.once.Do(func() { e.data, e.err = r.fetch(ctx, u) })
-	if e.err != nil {
-		if isContextError(e.err) {
-			// Do not let a cancelled caller poison the cache.
-			r.mu.Lock()
-			if r.cache[u] == e {
-				delete(r.cache, u)
-			}
-			r.mu.Unlock()
+	var e *cacheEntry
+	for attempt := 0; ; attempt++ {
+		r.mu.Lock()
+		var ok bool
+		if e, ok = r.cache[u]; !ok {
+			e = &cacheEntry{}
+			r.cache[u] = e
 		}
+		r.mu.Unlock()
+
+		e.once.Do(func() { e.data, e.err = r.fetch(ctx, u) })
+		if e.err == nil || !isContextError(e.err) {
+			break
+		}
+		// The request was interrupted by the cancellation of the caller
+		// that issued it (possibly another check): forget it and retry
+		// with our own context, unless it is done too.
+		r.mu.Lock()
+		if r.cache[u] == e {
+			delete(r.cache, u)
+		}
+		r.mu.Unlock()
+		if ctx.Err() != nil || attempt >= 2 {
+			return e.err
+		}
+	}
+	if e.err != nil {
 		return e.err
 	}
 	if err := json.Unmarshal(e.data, out); err != nil {
@@ -118,12 +128,11 @@ func (r *RIPEstat) fetch(ctx context.Context, u string) (json.RawMessage, error)
 		if ctx.Err() != nil {
 			return nil, ctx.Err()
 		}
-		err = fmt.Errorf("ripestat unreachable: %w", unwrapURLError(err))
-		r.mu.Lock()
-		r.down = err
-		r.mu.Unlock()
-		return nil, err
+		return nil, r.transportError(err)
 	}
+	r.mu.Lock()
+	r.timeouts = 0
+	r.mu.Unlock()
 	defer func() { _ = resp.Body.Close() }()
 	body, err := io.ReadAll(io.LimitReader(resp.Body, 16<<20))
 	if err != nil {
@@ -140,6 +149,32 @@ func (r *RIPEstat) fetch(ctx context.Context, u string) (json.RawMessage, error)
 		return nil, fmt.Errorf("ripestat: empty data")
 	}
 	return env.Data, nil
+}
+
+// maxTimeouts is the number of consecutive timeouts after which RIPEstat is
+// considered unreachable.
+const maxTimeouts = 3
+
+// transportError records a failed request. Connection errors trip the
+// circuit breaker at once, timeouts only when they repeat (a single slow
+// data call must not disable RIPEstat for the whole scan). The returned
+// error never wraps a context error, which is reserved for cancellations.
+func (r *RIPEstat) transportError(err error) error {
+	err = unwrapURLError(err)
+	var ne net.Error
+	timeout := errors.As(err, &ne) && ne.Timeout()
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if timeout {
+		r.timeouts++
+		terr := fmt.Errorf("ripestat request timed out: %v", err)
+		if r.timeouts >= maxTimeouts {
+			r.down = fmt.Errorf("ripestat unreachable: %d consecutive timeouts", r.timeouts)
+		}
+		return terr
+	}
+	r.down = fmt.Errorf("ripestat unreachable: %v", err)
+	return r.down
 }
 
 func isContextError(err error) bool {

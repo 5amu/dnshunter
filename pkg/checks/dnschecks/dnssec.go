@@ -279,7 +279,13 @@ func evaluateSOASignature(ctx context.Context, env *core.Env, r *core.Result, ep
 				continue
 			}
 			exp := time.Unix(int64(sig.Expiration), 0)
-			if left := time.Until(exp); left < 72*time.Hour {
+			// Signers refresh signatures well before they expire: less
+			// than 20% of the validity window left means re-signing is
+			// not happening. (Online signers such as Cloudflare or NS1
+			// use short ~2 days windows, so an absolute threshold would
+			// always trigger.)
+			window := time.Duration(sig.Expiration-sig.Inception) * time.Second
+			if left := time.Until(exp); left < window/5 {
 				r.Add(core.Fail(core.SeverityLow, zone, "zone signatures are about to expire",
 					fmt.Sprintf("SOA signature expires on %s (in %s): check that re-signing works", exp.UTC().Format(time.RFC3339), left.Round(time.Minute))))
 			} else {
