@@ -1,6 +1,6 @@
 <h1 align="center">
     <br>
-    <img src="assets/dnshunter_logo.png" width="200px" alt="DNSHunter">
+    <img src="assets/dnshunter_logo.svg" width="200px" alt="DNSHunter">
     <br>
     DNS Hunter
 </h1>
